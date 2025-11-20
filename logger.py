@@ -1,6 +1,7 @@
 import numpy as np
 from quad import *
 from controller.pid import *
+from sensor.imu import IMU
 from utils import *
 import pandas as pd
 
@@ -18,6 +19,7 @@ class Logger():
         self.eulerangles = np.zeros((3, timesteps))
         self.motor_thrust = np.zeros((4, timesteps))
         self.total_thrust = np.zeros(timesteps)
+        self.accel = np.zeros((3, timesteps))
 
         #Controller
         self.angle_setpoint = np.zeros((3, timesteps))
@@ -25,7 +27,11 @@ class Logger():
         self.integrated_error = np.zeros((3, timesteps))
         self.motor_commands = np.zeros((4, timesteps))
 
-    def log(self, quad: QuadcopterDynamcis, ctrl: AttitudePID, step, dt):
+        #IMU
+        self.imu_accel = np.zeros((3, timesteps))
+        self.imu_rates = np.zeros((3, timesteps))
+
+    def log(self, quad: QuadcopterDynamcis, ctrl: AttitudePID, imu: IMU, step, dt):
         self.pos[:, step] = quad.pos
         self.vel[:, step] = quad.vel
         self.q[:, step] = quad.q
@@ -36,11 +42,15 @@ class Logger():
         self.eulerangles[:, step] = quat_to_euler(quad.q) * 180 / np.pi
         self.motor_thrust[:, step] = quad.params.kT * np.square(quad.n)
         self.total_thrust[step] = np.sum(self.motor_thrust)
+        self.accel[:, step] = quad.accel
 
         self.angle_setpoint[:, step] = np.array([ctrl.roll_pid.setpoint, ctrl.pitch_pid.setpoint, ctrl.yaw_pid.setpoint])
         self.angle_error[:, step] = np.array([ctrl.roll_pid.err, ctrl.pitch_pid.err, ctrl.yaw_pid.err])
         self.integrated_error[:, step] = np.array([ctrl.roll_pid.integrated_err, ctrl.pitch_pid.integrated_err, ctrl.yaw_pid.integrated_err])
         self.motor_commands[:, step] = np.array([ctrl.motor_commands])
+
+        self.imu_accel[:, step] = imu.meas_accel
+        self.imu_rates[:, step] = imu.meas_rates * 180 / np.pi
 
     def save_csv(self, filename):
         df = pd.DataFrame({
@@ -74,6 +84,9 @@ class Logger():
             "roll_integrated_error": self.integrated_error[0, :],
             "pitch_integrated_error": self.integrated_error[1, :],
             "yaw_integrated_error": self.integrated_error[2, :],
+            "accel_x": self.accel[0, :],
+            "accel_y": self.accel[1, :],
+            "accel_z": self.accel[2, :],
         })
 
         df.to_csv(filename, index=False)

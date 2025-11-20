@@ -30,13 +30,14 @@ def plot(Log: Logger):
     rate_labels = ["Rollrate [deg/s]", "Pitchrate [deg/s]", "Yawrate [deg/s]"]
     for i in range(3):
         axes[i, 3].plot(timeaxis, Log.w[i, :])
+        axes[i, 3].plot(timeaxis, Log.imu_rates[i, :], color="seagreen")
         axes[i, 3].set_ylabel(rate_labels[i])
         axes[i, 3].grid()
     
     thrust_labels = ["Motor 1", "Motor 2", "Motor 3", "Motor 4"]
     for i in range(4):
         axes[0, 4].plot(timeaxis, Log.n[i, :], label = thrust_labels[i])
-        axes[0, 4].plot(timeaxis, Log.motor_commands[i, :])
+        #axes[0, 4].plot(timeaxis, Log.motor_commands[i, :])
         axes[0, 4].legend()
     axes[0, 4].grid()
 

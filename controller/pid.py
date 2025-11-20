@@ -66,7 +66,6 @@ class AttitudePID:
         u = self.mixer_matrix @ np.hstack((u, throttle))
 
         u = np.clip(u, 0, np.inf)
-        print(u)
 
         self.motor_commands = np.sqrt(u/(1.9 * 10**-6))
 

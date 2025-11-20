@@ -20,11 +20,16 @@ class QuadcopterParam():
 class QuadcopterDynamcis():
     def __init__(self, params: QuadcopterParam):
         self.params = params
+        
+        #State
         self.pos = np.zeros(3)
         self.vel = np.zeros(3)
         self.q = np.array([1, 0, 0, 0])
         self.w = np.zeros(3)
         self.n = np.full(4, 1136)
+
+        #Additional
+        self.accel = np.zeros(3)
     
     def step(self, ncmd, dt):
 
@@ -58,7 +63,7 @@ class QuadcopterDynamcis():
 
             Fg = np.array([0, 0, -9.81 * self.params.mass]) #Gravitational force in world frame
 
-            state_dot[3:6] = 1/self.params.mass * (R @ (-T_total + Fd) + Fg) #NSL in world frame
+            state_dot[3:6] = 1/self.params.mass * (R.T @ (-T_total + Fd) + Fg) #NSL in world frame
 
             state_dot[6:10] = 0.5 * omega_matrix(w) @ q #Quaternion dynamics
         
@@ -99,3 +104,6 @@ class QuadcopterDynamcis():
         self.q = S[6:10]
         self.w = S[10:13]
         self.n = np.clip(S[13:17], 0, self.params.nmax)
+
+        state_dot_final = state_dynamics(S, ncmd)
+        self.accel = state_dot_final[3:6]
