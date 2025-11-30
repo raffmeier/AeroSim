@@ -1,17 +1,6 @@
 import numpy as np
 
-def quat_multiply(q1, q2):
-    # [w,x,y,z]
-    w1,x1,y1,z1 = q1
-    w2,x2,y2,z2 = q2
-    return np.array([
-        w1*w2 - x1*x2 - y1*y2 - z1*z2,
-        w1*x2 + x1*w2 + y1*z2 - z1*y2,
-        w1*y2 - x1*z2 + y1*w2 + z1*x2,
-        w1*z2 + x1*y2 - y1*x2 + z1*w2
-    ])
-
-def quat_to_R(q):
+def quat_to_R(q): #Quaternion to Rotation Matrix: Body to World
     qw, qx, qy, qz = q
 
     R = np.array([
@@ -30,3 +19,9 @@ def quat_to_euler(q):
     yaw = np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy**2 + qz**2))
 
     return np.array([roll, pitch, yaw])
+
+def getPressure(altitude, ref_pressure):
+    return ref_pressure * (1 - (2.25577e-5 * altitude))**5.25588
+
+def getAltitude(pressure, ref_pressure):
+    return (1 - (pressure / ref_pressure)**(1/5.25588)) / 2.25577e-5

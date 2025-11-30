@@ -3,21 +3,22 @@ from utils import *
 
 class QuadcopterParam():
     def __init__(self):
-        self.mass = 1
-        self.inertia = np.diag(np.array([0.015, 0.015, 0.03]))
-        self.arm = 0.17
-        self.kT = 1.9 * 10**-6
-        self.kQ = 2.6 * 10**-7
+        # Quadcopter physical parameters (Iris quadcopter)
+        self.mass = 1.5
+        self.inertia = np.diag(np.array([0.0348, 0.0459, 0.0977]))
+        self.arm = 0.23
+        self.kT = 8.54858 * 10**-6
+        self.kQ = 5.129148 * 10**-7
         self.CdA = np.array([0.02, 0.02, 0.03])
 
-        self.tau_m = 0.1
-        self.nmax = 2100 #max 2100 rad/s = 20'000 rpm
-        self.dn_max = 520 #max 520 rad/s² = 5000 rpm/s²
+        self.tau_m = 0.01
+        self.nmax = 1100 # max 1100 rad/s = 10'000 rpm
+        self.dn_max = 520 # max 520 rad/s² = 5000 rpm/s²
 
         self.rho = 1.225
         
 
-class QuadcopterDynamcis():
+class QuadcopterDynamics():
     def __init__(self, params: QuadcopterParam):
         self.params = params
         
@@ -26,7 +27,7 @@ class QuadcopterDynamcis():
         self.vel = np.zeros(3)
         self.q = np.array([1, 0, 0, 0])
         self.w = np.zeros(3)
-        self.n = np.full(4, 1136)
+        self.n = np.full(4, 0)
 
         #Additional
         self.accel = np.zeros(3)
@@ -52,27 +53,26 @@ class QuadcopterDynamcis():
             w = state[10:13]
             n = state[13:17]
 
-            state_dot[0:3] = vel #Kinematics
+            state_dot[0:3] = vel # Kinematics
 
             R = quat_to_R(q)
             T = self.params.kT * np.square(n)
-            T_total = np.array([0, 0, -np.sum(T)]) #Total thrust in body frame
+            T_total = np.array([0, 0, -np.sum(T)]) # Total thrust in body frame
 
-            vel_body = R.T @ vel #Linear velocity in body frame
-            Fd = -0.5 * self.params.rho * self.params.CdA * vel_body * np.abs(vel_body) #Quadratic drag force in body frame
+            vel_body = R.T @ vel # Linear velocity in body frame
+            Fd = -0.5 * self.params.rho * self.params.CdA * vel_body * np.abs(vel_body) # Quadratic drag force in body frame
 
-            Fg = np.array([0, 0, -9.81 * self.params.mass]) #Gravitational force in world frame
+            Fg = np.array([0, 0, 9.81 * self.params.mass]) #Gravitational force in world frame NED
 
-            state_dot[3:6] = 1/self.params.mass * (R.T @ (-T_total + Fd) + Fg) #NSL in world frame
+            state_dot[3:6] = 1/self.params.mass * (R @ (T_total + Fd) + Fg) # NSL in world frame
 
-            state_dot[6:10] = 0.5 * omega_matrix(w) @ q #Quaternion dynamics
+            state_dot[6:10] = 0.5 * omega_matrix(w) @ q # Quaternion dynamics
         
-            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (n[0]**2 - n[1]**2 + n[2]**2 - n[3]**2)]) #Rotational dynamics
+            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (-n[0]**2 + n[1]**2 - n[2]**2 + n[3]**2)]) # Rotational dynamics
             
             state_dot[10:13] = np.linalg.inv(self.params.inertia) @ (torque - np.cross(w, self.params.inertia @ w)) 
 
-            state_dot[13:17] = np.clip((ncmd - n) / self.params.tau_m, -self.params.dn_max, self.params.dn_max) #motor dynamics
-            #state_dot[13:17] = (ncmd - n) / self.params.tau_m #motor dynamics
+            state_dot[13:17] = np.clip((ncmd - n) / self.params.tau_m, -self.params.dn_max, self.params.dn_max) # Motor dynamics
 
             return state_dot
         
@@ -107,3 +107,9 @@ class QuadcopterDynamcis():
 
         state_dot_final = state_dynamics(S, ncmd)
         self.accel = state_dot_final[3:6]
+
+        # Collision detection
+        if(self.pos[2] > 0):
+            self.pos[2] = 0
+            self.vel[2] = 0
+            self.accel[2] = 0

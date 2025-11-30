@@ -1,9 +1,9 @@
 import numpy as np
 from quad import *
 from controller.pid import *
-from sensor.imu import IMU
 from utils import *
 import pandas as pd
+import os
 
 class Logger():
     def __init__(self, timesteps):
@@ -27,11 +27,7 @@ class Logger():
         self.integrated_error = np.zeros((3, timesteps))
         self.motor_commands = np.zeros((4, timesteps))
 
-        #IMU
-        self.imu_accel = np.zeros((3, timesteps))
-        self.imu_rates = np.zeros((3, timesteps))
-
-    def log(self, quad: QuadcopterDynamcis, ctrl: AttitudePID, imu: IMU, step, dt):
+    def log(self, quad: QuadcopterDynamics, ctrl: AttitudePID, step, dt):
         self.pos[:, step] = quad.pos
         self.vel[:, step] = quad.vel
         self.q[:, step] = quad.q
@@ -48,9 +44,6 @@ class Logger():
         self.angle_error[:, step] = np.array([ctrl.roll_pid.err, ctrl.pitch_pid.err, ctrl.yaw_pid.err])
         self.integrated_error[:, step] = np.array([ctrl.roll_pid.integrated_err, ctrl.pitch_pid.integrated_err, ctrl.yaw_pid.integrated_err])
         self.motor_commands[:, step] = np.array([ctrl.motor_commands])
-
-        self.imu_accel[:, step] = imu.meas_accel
-        self.imu_rates[:, step] = imu.meas_rates * 180 / np.pi
 
     def save_csv(self, filename):
         df = pd.DataFrame({
@@ -89,4 +82,5 @@ class Logger():
             "accel_z": self.accel[2, :],
         })
 
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         df.to_csv(filename, index=False)

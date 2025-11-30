@@ -3,7 +3,7 @@ import numpy as np
 class IMUParam():
     def __init__(self):
         self.gyro_noise_density = np.deg2rad(0.014) #rad/s / sqrt(Hz)
-        self.accel_noise_density = 0.00186 #m/s2 / sqrt(Hz)
+        self.accel_noise_density = 0.00226 #m/s2 / sqrt(Hz)
 
         self.accel_range = 24 * 9.81 #plus and minus m/s2
         self.accel_bits = 16
@@ -11,8 +11,8 @@ class IMUParam():
         self.gyro_range = np.deg2rad(2000) #plus and minus rad/s
         self.gyro_bits = 16
 
-        self.accel_random_walk = 0.00117 #m/s3 / sqrt(Hz)
-        self.gyro_random_walk = np.deg2rad(0.2) #rad/s2 / sqrt(Hz)
+        self.accel_random_walk = 0.0001 #m/s3 / sqrt(Hz)
+        self.gyro_random_walk = np.deg2rad(0.02) #rad/s2 / sqrt(Hz)
         
 class IMU:
     def __init__(self, params: IMUParam, dt):
@@ -27,11 +27,13 @@ class IMU:
 
         self.accel_scale = (2**(self.params.accel_bits - 1) - 1) / self.params.accel_range
         self.gyro_scale = (2**(self.params.gyro_bits - 1) - 1) / self.params.gyro_range
+
+        self.gravity = np.array([0, 0, 9.81]) #NED frame
     
     def step(self, accel_world, body_rates, R_wb):
 
         #Linear acceleration
-        accel_body = R_wb.T @ accel_world #transform to body frame
+        accel_body = R_wb.T @ (accel_world - self.gravity) #transform to body frame
 
         accel_white_noise = np.random.normal(0, self.params.accel_noise_density, size=3) / np.sqrt(self.dt)
         self.accel_bias += np.random.normal(0, self.params.accel_random_walk, size=3) * np.sqrt(self.dt)

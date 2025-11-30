@@ -30,7 +30,6 @@ def plot(Log: Logger):
     rate_labels = ["Rollrate [deg/s]", "Pitchrate [deg/s]", "Yawrate [deg/s]"]
     for i in range(3):
         axes[i, 3].plot(timeaxis, Log.w[i, :])
-        axes[i, 3].plot(timeaxis, Log.imu_rates[i, :], color="seagreen")
         axes[i, 3].set_ylabel(rate_labels[i])
         axes[i, 3].grid()
     

@@ -45,10 +45,10 @@ class AttitudePID:
         self.pitch_pid = PID(2, 0, 1, dt, -6, 6)
         self.yaw_pid = PID(4, 0, 1, dt, -np.inf, np.inf)
 
-        self.mixer_matrix = np.array([[0, 0.5, 0.25, 0.25],
-                                      [-0.5, 0, -0.25, 0.25],
-                                      [0, -0.5, 0.25, 0.25],
-                                      [0.5, 0, -0.25, 0.25]])
+        self.mixer_matrix = np.array([[0, 0.5, -0.25, 0.25],
+                                      [-0.5, 0, 0.25, 0.25],
+                                      [0, -0.5, -0.25, 0.25],
+                                      [0.5, 0, 0.25, 0.25]])
         
         self.motor_commands = np.zeros(4)
     
@@ -67,7 +67,7 @@ class AttitudePID:
 
         u = np.clip(u, 0, np.inf)
 
-        self.motor_commands = np.sqrt(u/(1.9 * 10**-6))
+        self.motor_commands = np.sqrt(u/(8.54858 * 10**-6))
 
         return self.motor_commands
         
