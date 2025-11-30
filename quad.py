@@ -1,5 +1,6 @@
 import numpy as np
 from utils import *
+import constants
 
 class QuadcopterParam():
     def __init__(self):
@@ -62,9 +63,7 @@ class QuadcopterDynamics():
             vel_body = R.T @ vel # Linear velocity in body frame
             Fd = -0.5 * self.params.rho * self.params.CdA * vel_body * np.abs(vel_body) # Quadratic drag force in body frame
 
-            Fg = np.array([0, 0, 9.81 * self.params.mass]) #Gravitational force in world frame NED
-
-            state_dot[3:6] = 1/self.params.mass * (R @ (T_total + Fd) + Fg) # NSL in world frame
+            state_dot[3:6] = 1/self.params.mass * (R @ (T_total + Fd) + constants.GRAVITY_NED) # NSL in world frame
 
             state_dot[6:10] = 0.5 * omega_matrix(w) @ q # Quaternion dynamics
         
