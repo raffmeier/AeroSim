@@ -25,6 +25,7 @@ class QuadcopterParam():
 class QuadcopterDynamics():
     def __init__(self, params: QuadcopterParam):
         self.params = params
+        self.inv_inertia = np.linalg.inv(self.params.inertia)
         
         #State
         self.pos = np.zeros(3)
@@ -36,29 +37,18 @@ class QuadcopterDynamics():
         #Additional
         self.accel = np.zeros(3)
     
-    def step(self, ncmd, dt):
+    def state_dynamics(self, state, ncmd):
 
-        def omega_matrix(omega):
-            p, q, r = omega
-            return np.array([
-                [0.0, -p, -q, -r],
-                [p,  0.0,  r, -q],
-                [q, -r,  0.0,  p],
-                [r,  q, -p,  0.0],
-            ])
-
-        def state_dynamics(state, ncmd):
-
-            state_dot = np.zeros(17)
-
+            #Unpack state
             pos = state[0:3]
             vel = state[3:6]
             q = state[6:10]
             w = state[10:13]
             n = state[13:17]
 
-            # 1) Linear kinematics
-            state_dot[0:3] = vel 
+            state_dot = np.zeros(17)
+
+            state_dot[0:3] = vel # Kinematics
 
             # 2) Linear dynamics
             R = quat_to_R(q)
@@ -70,16 +60,15 @@ class QuadcopterDynamics():
 
             state_dot[3:6] = 1/self.params.mass * (R @ (T_total + Fd) + constants.GRAVITY_NED) # NSL in world frame
 
-            # 3) Rotational kinematics
-            state_dot[6:10] = 0.5 * omega_matrix(w) @ q
-
-            # 4) Rotational dynamics
-            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (-n[0]**2 + n[1]**2 - n[2]**2 + n[3]**2)])
+            state_dot[6:10] = 0.5 * omega_matrix_from_q(w) @ q # Quaternion dynamics
+        
+            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (-n[0]**2 + n[1]**2 - n[2]**2 + n[3]**2)]) # Rotational dynamics
             
-            state_dot[10:13] = np.linalg.inv(self.params.inertia) @ (torque - np.cross(w, self.params.inertia @ w)) 
+            state_dot[10:13] = self.inv_inertia @ (torque - np.cross(w, self.params.inertia @ w)) 
 
             # 5) Motor dynamics
-            state_dot[13:17] = np.clip((ncmd - n) / self.params.tau_m, -self.params.dn_max, self.params.dn_max)
+            dn = (ncmd - n) / self.params.tau_m
+            state_dot[13:17] = np.clip(dn, -self.params.dn_max, self.params.dn_max) # Motor dynamics
             
             # 6) Ground contact
             if(pos[2] >= 0): # On ground
@@ -88,17 +77,15 @@ class QuadcopterDynamics():
                 state_dot[10:13] -= self.params.ground_angular_friction * w
 
             return state_dot
-        
-        def rk(S, n_cmd, dt):
-            k1 = state_dynamics(S, n_cmd)
-            k2 = state_dynamics(S + 0.5*dt*k1, n_cmd)
-            k3 = state_dynamics(S + 0.5*dt*k2, n_cmd)
-            k4 = state_dynamics(S + dt*k3,     n_cmd)
+    
+    def rk4(self, S, n_cmd, dt):
+            k1 = self.state_dynamics(S, n_cmd)
+            k2 = self.state_dynamics(S + 0.5*dt*k1, n_cmd)
+            k3 = self.state_dynamics(S + 0.5*dt*k2, n_cmd)
+            k4 = self.state_dynamics(S + dt*k3,     n_cmd)
             return S + (dt/6.0)*(k1 + 2*k2 + 2*k3 + k4)
-        
-        def euler(S, n_cmd, dt):
-            state_dot = state_dynamics(S, n_cmd)
-            return S + dt * state_dot
+    
+    def step(self, ncmd, dt):
 
         S = np.zeros(17)
         S[0:3]   = self.pos
@@ -107,8 +94,8 @@ class QuadcopterDynamics():
         S[10:13] = self.w
         S[13:17] = self.n
 
-        S = rk(S, ncmd, dt)
-        
+        S = self.rk4(S, ncmd, dt)
+
         q = S[6:10]
         S[6:10] = q / np.linalg.norm(q)
 
@@ -117,8 +104,8 @@ class QuadcopterDynamics():
         self.q = S[6:10]
         self.w = S[10:13]
         self.n = np.clip(S[13:17], 0, self.params.nmax)
-        
-        state_dot_final = state_dynamics(S, ncmd)
+
+        state_dot_final = self.state_dynamics(S, ncmd)
         self.accel = state_dot_final[3:6]
 
         # On ground --> clip vertical position, velocity, acceleration

@@ -20,6 +20,15 @@ def quat_to_euler(q):
 
     return np.array([roll, pitch, yaw])
 
+def omega_matrix_from_q(omega):
+            p, q, r = omega
+            return np.array([
+                [0.0, -p, -q, -r],
+                [p,  0.0,  r, -q],
+                [q, -r,  0.0,  p],
+                [r,  q, -p,  0.0],
+            ])
+
 def getPressure(altitude, ref_pressure):
     return ref_pressure * (1 - (2.25577e-5 * altitude))**5.25588
 
