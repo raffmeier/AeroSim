@@ -1,31 +1,40 @@
-# drone_vis.py
 import multiprocessing as mp
 import time
 import numpy as np
-import queue as queue_mod  # stdlib queue for Empty / Full
+import queue as queue_mod
 
 
 def _vis_process(q, arm_length, update_hz):
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    from mpl_toolkits.mplot3d import Axes3D 
 
     plt.ion()
-    fig = plt.figure()
+    fig = plt.figure(figsize=(8, 5))
     ax = fig.add_subplot(111, projection="3d")
 
     L = arm_length
-    rotor_centers_body = np.array(
-        [
-            [L, 0.0, 0.0],   # front
-            [-L, 0.0, 0.0],  # back
-            [0.0, L, 0.0],   # left
-            [0.0, -L, 0.0],  # right
-        ]
-    ).T  # (3,4)
+    rotor_centers_body = np.array([[L, 0, 0],
+                                   [-L, 0, 0],
+                                   [0, L, 0],
+                                   [0, -L, 0]]).T
 
-    arm_x_line, = ax.plot([], [], [], linewidth=3)
-    arm_y_line, = ax.plot([], [], [], linewidth=3)
-    prop_lines = [ax.plot([], [], [], linewidth=1)[0] for _ in range(4)]
+    # rotor locations
+    rotor_scatter = ax.scatter([], [], [], s=30, color="k")
+
+    # quad arms
+    arm_x_line, = ax.plot([], [], [], linewidth=3, color='black')
+    arm_y_line, = ax.plot([], [], [], linewidth=3, color='black')
+
+    # trail
+    trail_duration = 3 # seconds
+    trail = []
+    trail_scatter = ax.scatter([], [], [], s=10, color="gray", alpha=0.7)
+
+    # body frame axes
+    body_frame_quivers = []
+
+    # rotor thrust arrows
+    rotor_thrust_quiver = None
 
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
@@ -33,33 +42,44 @@ def _vis_process(q, arm_length, update_hz):
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(0, 2)
-    ax.set_box_aspect([1, 1, 0.5])
+    ax.invert_yaxis()
 
     update_period = 1.0 / update_hz
     last_draw = time.time()
-    prop_angle = 0.0
 
-    # defaults if queue is empty initially
     R = np.eye(3)
     pos = np.zeros(3)
+    w = np.zeros(4)
+
+    max_arrow_length = 5 * L     # max length for thrust arrows
+    body_axis_length = 0.5 * L     # length of the FRD body frame axes arrows
+
+    thrust_dir_visual_world = np.array([0.0, 0.0, 1.0])
+
+    F = np.diag([1, 1, -1])  # NED/FRD -> z-up vis frame
 
     while plt.fignum_exists(fig.number):
-        now = time.time()
-        if now - last_draw < update_period:
-            time.sleep(0.001)
-            continue
-        last_draw = now
-
-        # get latest pose (non-blocking, drop intermediate ones)
         try:
             while True:
-                R_new, pos_new = q.get_nowait()
-                R, pos = R_new, pos_new * np.array([1, 1, -1])
+                R, pos, w = q.get_nowait()
         except queue_mod.Empty:
             pass
 
-        # transform rotor centers to world
-        rotor_world = R @ rotor_centers_body + pos.reshape(3, 1)
+        # convert from NED/FRD to visualization frame
+        pos_vis = F @ pos
+        R_vis = F @ R @ F
+
+        # transform rotor centers to world (visual) frame
+        rotor_world = R_vis @ rotor_centers_body + pos_vis.reshape(3, 1)
+
+        # update rotor positions
+        rotor_scatter._offsets3d = (
+            rotor_world[0, :],
+            rotor_world[1, :],
+            rotor_world[2, :],
+        )
+
+        # update arms
         arm_x = rotor_world[:, 0:2]
         arm_y = rotor_world[:, 2:4]
 
@@ -69,30 +89,67 @@ def _vis_process(q, arm_length, update_hz):
         arm_y_line.set_data(arm_y[0, :], arm_y[1, :])
         arm_y_line.set_3d_properties(arm_y[2, :])
 
-        # spinning props
-        prop_angle += 80.0 * update_period
-        angle_rad = np.deg2rad(prop_angle)
-        r_prop = 0.12
-        base = np.array([[-r_prop, 0.0, 0.0],
-                         [ r_prop, 0.0, 0.0]]).T  # (3,2)
-        Rz = np.array(
-            [
-                [np.cos(angle_rad), -np.sin(angle_rad), 0.0],
-                [np.sin(angle_rad),  np.cos(angle_rad), 0.0],
-                [0.0,                0.0,               1.0],
-            ]
+        # update trail
+        now = time.time()
+        trail.append((now, pos_vis.copy()))
+
+        cutoff = now - trail_duration
+        trail = [(t, p) for (t, p) in trail if t >= cutoff]
+
+        if len(trail) > 0:
+            pts = np.stack([p for (t, p) in trail], axis=1)
+            trail_scatter._offsets3d = (pts[0, :], pts[1, :], pts[2, :])
+        else:
+            trail_scatter._offsets3d = ([], [], [])
+
+        # update body frame axes
+        for qv in body_frame_quivers:
+            qv.remove()
+        body_frame_quivers = []
+
+        origin = pos_vis
+        axes = [
+            (R_vis[:, 0], "r"),
+            (R_vis[:, 1], "g"),
+            (-R_vis[:, 2], "b")
+        ]
+
+        for axis_vec, color in axes:
+            u, v, w_axis = body_axis_length * axis_vec
+            qv = ax.quiver(
+                origin[0], origin[1], origin[2],
+                u, v, w_axis,
+                length=1.0, normalize=False, color=color
+            )
+            body_frame_quivers.append(qv)
+
+        # update rotor thrust arrows 
+        if rotor_thrust_quiver is not None:
+            rotor_thrust_quiver.remove()
+
+        omega_norm = w / 1100
+        arrow_lengths = max_arrow_length * omega_norm  # (4,)
+        thrust_vecs = thrust_dir_visual_world.reshape(3, 1) * arrow_lengths.reshape(1, 4)
+
+        xs_r = rotor_world[0, :]
+        ys_r = rotor_world[1, :]
+        zs_r = rotor_world[2, :]
+
+        us_r = thrust_vecs[0, :]
+        vs_r = thrust_vecs[1, :]
+        ws_r = thrust_vecs[2, :]
+
+        rotor_thrust_quiver = ax.quiver(
+            xs_r, ys_r, zs_r,
+            us_r, vs_r, ws_r,
+            length=1.0, normalize=False, color = 'dodgerblue'
         )
 
-        for i in range(4):
-            c_body = rotor_centers_body[:, i:i+1]
-            prop_body = Rz @ base + c_body
-            prop_world = R @ prop_body + pos.reshape(3, 1)
-            line = prop_lines[i]
-            line.set_data(prop_world[0, :], prop_world[1, :])
-            line.set_3d_properties(prop_world[2, :])
-
-        fig.canvas.draw_idle()
-        plt.pause(0.001)
+        now = time.time()
+        if now - last_draw >= update_period:
+            fig.canvas.draw_idle()
+            plt.pause(0.001)
+            last_draw = now
 
     try:
         plt.close(fig)
@@ -110,21 +167,11 @@ class DroneVis:
         )
         self.proc.start()
 
-    def update(self, R, pos):
-        """Non-blocking: drops old frames if the queue is full."""
-        R = np.asarray(R, dtype=float)
-        pos = np.asarray(pos, dtype=float)
-
-        # try to clear old item (if any) so we always keep only newest
+    def update(self, R, pos, w):
         try:
-            _ = self.queue.get_nowait()
-        except queue_mod.Empty:
-            pass
-
-        try:
-            self.queue.put_nowait((R, pos))
+            self.queue.put_nowait((R, pos, w))
         except queue_mod.Full:
-            # if still full, just skip — sim must never block
+            # drop frame if visualizer is behind
             pass
 
     def close(self):

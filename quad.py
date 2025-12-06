@@ -117,7 +117,7 @@ class QuadcopterDynamics():
         self.q = S[6:10]
         self.w = S[10:13]
         self.n = np.clip(S[13:17], 0, self.params.nmax)
-        print(self.pos[2])
+        
         state_dot_final = state_dynamics(S, ncmd)
         self.accel = state_dot_final[3:6]
 

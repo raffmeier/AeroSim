@@ -81,8 +81,8 @@ def run_px4_sitl_sim():
             if controls is not None:
                 ncmd = controls
             
-            if step % 100 == 0:
-                viz.update(quat_to_R(quad.q), quad.pos)
+            if step % 16 == 0:
+                viz.update(quat_to_R(quad.q), quad.pos, quad.n)
 
             step += 1
             if step == 10**6:
