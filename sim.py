@@ -6,6 +6,7 @@ from logger import *
 from plot import *
 from sensor.sensor import SensorSuite
 from mavlink_util import *
+from drone_vis import DroneVis
 
 
 # =========================
@@ -59,6 +60,8 @@ def run_px4_sitl_sim():
     quadParams = QuadcopterParam()
     quad = QuadcopterDynamics(quadParams)
 
+    viz = DroneVis(update_hz=60)
+
     px4 = connectToPX4SITL()
 
     ncmd = np.zeros(4)
@@ -77,6 +80,9 @@ def run_px4_sitl_sim():
             controls = receiveActuatorControls(px4, quad)
             if controls is not None:
                 ncmd = controls
+            
+            if step % 100 == 0:
+                viz.update(quat_to_R(quad.q), quad.pos)
 
             step += 1
             if step == 10**6:
@@ -85,10 +91,17 @@ def run_px4_sitl_sim():
             elapsed = time.time() - now / 1e6
             sleeptime = dt_sim - elapsed
             if sleeptime > 0:
+                #print("Info: PX4 SITL simulation is running real-time! "+ str(elapsed) +"         " + str(step))
                 time.sleep(sleeptime)
+            else:
+                print("Warning: PX4 SITL simulation is running slower than real-time! "+ str(elapsed) +"         " + str(step))
+                
 
     except KeyboardInterrupt:
         print("Simulation stopped by user")
+    
+    finally:
+        viz.close()
 
 
 # =========================
