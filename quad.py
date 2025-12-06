@@ -16,6 +16,9 @@ class QuadcopterParam():
         self.nmax = 1100 # max 1100 rad/s = 10'000 rpm
         self.dn_max = 520 # max 520 rad/s² = 5000 rpm/s²
 
+        self.ground_linear_friction = 5
+        self.ground_angular_friction = 5
+
         self.rho = 1.225
         
 
@@ -54,8 +57,10 @@ class QuadcopterDynamics():
             w = state[10:13]
             n = state[13:17]
 
-            state_dot[0:3] = vel # Kinematics
+            # 1) Linear kinematics
+            state_dot[0:3] = vel 
 
+            # 2) Linear dynamics
             R = quat_to_R(q)
             T = self.params.kT * np.square(n)
             T_total = np.array([0, 0, -np.sum(T)]) # Total thrust in body frame
@@ -65,13 +70,22 @@ class QuadcopterDynamics():
 
             state_dot[3:6] = 1/self.params.mass * (R @ (T_total + Fd) + constants.GRAVITY_NED) # NSL in world frame
 
-            state_dot[6:10] = 0.5 * omega_matrix(w) @ q # Quaternion dynamics
-        
-            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (-n[0]**2 + n[1]**2 - n[2]**2 + n[3]**2)]) # Rotational dynamics
+            # 3) Rotational kinematics
+            state_dot[6:10] = 0.5 * omega_matrix(w) @ q
+
+            # 4) Rotational dynamics
+            torque = np.array([self.params.arm * (-T[1] + T[3]), self.params.arm * (T[0] - T[2]), self.params.kQ * (-n[0]**2 + n[1]**2 - n[2]**2 + n[3]**2)])
             
             state_dot[10:13] = np.linalg.inv(self.params.inertia) @ (torque - np.cross(w, self.params.inertia @ w)) 
 
-            state_dot[13:17] = np.clip((ncmd - n) / self.params.tau_m, -self.params.dn_max, self.params.dn_max) # Motor dynamics
+            # 5) Motor dynamics
+            state_dot[13:17] = np.clip((ncmd - n) / self.params.tau_m, -self.params.dn_max, self.params.dn_max)
+            
+            # 6) Ground contact
+            if(pos[2] >= 0): # On ground
+                # Apply friction terms to linear and angular velocities
+                state_dot[3:5] -= self.params.ground_linear_friction * vel[0:2]
+                state_dot[10:13] -= self.params.ground_angular_friction * w
 
             return state_dot
         
@@ -94,7 +108,7 @@ class QuadcopterDynamics():
         S[13:17] = self.n
 
         S = rk(S, ncmd, dt)
-
+        
         q = S[6:10]
         S[6:10] = q / np.linalg.norm(q)
 
@@ -103,12 +117,12 @@ class QuadcopterDynamics():
         self.q = S[6:10]
         self.w = S[10:13]
         self.n = np.clip(S[13:17], 0, self.params.nmax)
-
+        print(self.pos[2])
         state_dot_final = state_dynamics(S, ncmd)
         self.accel = state_dot_final[3:6]
 
-        # Collision detection
-        if(self.pos[2] > 0):
+        # On ground --> clip vertical position, velocity, acceleration
+        if(self.pos[2] >= 0):
             self.pos[2] = 0
             self.vel[2] = 0
             self.accel[2] = 0
