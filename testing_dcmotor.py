@@ -2,23 +2,29 @@ import numpy as np
 from matplotlib import pyplot as plt
 import time
 
-J_mot = 1.3 * 10**-4  # kg*m2
-b = 0.00035       # kg*m2/s
-k_T = 0.0649      # Nm/A
+R_tot = None
+
+brake = True
+
+J_mot = 1.3 * 10**-4    # kg*m2
+b = 0.00035             # kg*m2/s
+k_T = 0.0649            # Nm/A
 k_e = k_T
-R = 0.103         # Ohm
-L = 0.048 * 10**-3  # H
+R_w = 0.103             # Ohm
+R_brake = 1             # Ohm
+L = 0.048 * 10**-3      # H
 
-J_prop = 1.79 * 10**-3 # kg*m2 (propeller inertia)
+V_max = 50              # V
 
-J = J_mot + J_prop
-
-V_max = 50  # V
+J_prop = 1.79 * 10**-3  # kg*m2 (propeller inertia)
 
 dt = 0.00001    # 10 µs
 timesteps = 50000
 
-states = np.zeros((2, timesteps))  # [omega, current]
+states = np.zeros((2, timesteps))  # [omega, motor (internal) current]
+
+
+J = J_mot + J_prop
 
 # logging
 omega_des = 500.0
@@ -49,8 +55,9 @@ input_u = 0.0
 
 def state_dynamics(state, u, tau_load):
     V = V_max * u
+
     omega_dot = (k_T * state[1] - b * state[0] - tau_load) / J
-    current_dot = (V - R * state[1] - k_e * state[0]) / L
+    current_dot = (V - R_tot * state[1] - k_e * state[0]) / L
     return np.array([omega_dot, current_dot])
 
 def rk4(state, u, tau_load, dt):
@@ -64,24 +71,48 @@ start = time.time()
 
 for step in range(1, timesteps):
 
-    # if step > 20000:
-    #     omega_des = 500.0
+    if step > 25000:
+        omega_des = 0
 
     omega_ref_log[step] = omega_des
 
-    # prop torque
-    tau_prop = 1.4 * 10**-5 * states[0, step-1]**2  # propeller load torque
+    omega_prev = states[0, step-1]
 
-    # integrate motor dynamics
+    tau_prop = 1.4 * 10**-5 * omega_prev**2  # propeller load torque
+
+    # choose mode
+    braking_mode = brake and (omega_prev > omega_des + 10.0)
+
+    if braking_mode:
+        R_tot = R_w + R_brake
+        input_u = 0.0           # brake mode
+    else:
+        R_tot = R_w             # normal mode
+
+    # motor dynamics
     states[:, step] = rk4(states[:, step-1], u=input_u, tau_load=tau_prop, dt=dt)
 
-    # current physical limit
-    states[1, step] = np.clip(states[1, step], 0.0, i_max)
-
-
-    # controller
     omega = states[0, step]
     current = states[1, step]
+
+    # controller
+    if braking_mode:
+        # braking mode: no active current control
+        speed_error[step] = omega_des - omega
+        i_ref[step] = 0.0
+
+        # reset controllers
+        speed_int_error[step]   = 0.0                      # hard reset
+        current_error[step]     = 0.0
+        current_int_error[step] = 0.0
+
+        # logging
+        voltage[step] = 0.0
+        power[step]   = 0.0
+
+        continue    # skip the normal PI control this step
+
+    # normal mode: cascaded PI
 
     # outer loop: speed controller (omega -> i_ref)
     speed_error[step] = omega_des - omega
@@ -111,7 +142,8 @@ for step in range(1, timesteps):
 
     # logging
     voltage[step] = input_u * V_max
-    power[step] = voltage[step] * current
+    power[step]   = voltage[step] * current
+
 
 elapsed = time.time() - start
 print("Simulation finished in " + str(elapsed) + " seconds.")
