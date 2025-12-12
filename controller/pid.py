@@ -9,6 +9,10 @@ class PID:
         self.ki = ki
         self.kd = kd
 
+        self.p = 0
+        self.i = 0
+        self.d = 0
+
         self.out_min = out_min
         self.out_max = out_max
 
@@ -23,17 +27,17 @@ class PID:
         self.setpoint = setpoint
         self.err = setpoint - measurement
 
-        p = self.kp * self.err
+        self.p = self.kp * self.err
 
         if self.derivative_on_measurement == True:
-            d = -self.kd * (measurement - self.prev_measurement) / self.dt
+            self.d = -self.kd * (measurement - self.prev_measurement) / self.dt
         else:
-            d = self.kd * (self.err - self.prev_err) / self.dt
+            self.d = self.kd * (self.err - self.prev_err) / self.dt
 
         self.integrated_err += self.err * self.dt
-        i = self.ki * self.integrated_err
+        self.i = self.ki * self.integrated_err
 
-        u_unsat = p + i + d + feedforward
+        u_unsat = self.p + self.i + self.d + feedforward
 
         u_sat = np.clip(u_unsat, self.out_min, self.out_max)
 
@@ -44,5 +48,15 @@ class PID:
         self.prev_err = self.err
         self.prev_measurement = measurement
         return u_sat
+    
+    def log(self):
+        log = {
+            "p": self.p,
+            "i": self.i,
+            "d": self.d,
+            "error": self.err,
+            "integrated_error": self.integrated_err,
+        }
+        return log
         
         
