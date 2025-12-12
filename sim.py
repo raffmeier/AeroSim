@@ -1,7 +1,7 @@
 import argparse
 import time
 from quad import *
-from controller.pid import *
+from controller.attitude_pid import *
 from logger import *
 from plot import *
 from sensor.sensor import SensorSuite
