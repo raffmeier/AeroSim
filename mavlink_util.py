@@ -43,7 +43,6 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
                 fields_updated =    updated_bitmask,
                 id =                0
             )
-    
     #GPS message
     if step % sensors.gnss_div == 0:
 
@@ -64,8 +63,8 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
                 id =                0
             )
         
-def receiveActuatorControls(master: mavutil.mavlink_connection, quad: QuadcopterDynamics):
+def receiveActuatorControls(master: mavutil.mavlink_connection):
     msg = master.recv_match(blocking=False)
 
     if msg is not None and msg.get_type() == "HIL_ACTUATOR_CONTROLS":
-        return np.array(msg.controls[0:4]) * quad.params.nmax
+        return np.array(msg.controls[0:4])

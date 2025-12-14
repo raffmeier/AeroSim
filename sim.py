@@ -7,6 +7,7 @@ from plot import *
 from sensor.sensor import SensorSuite
 from mavlink_util import *
 from drone_vis import DroneVis
+from simulator import Simulator
 
 
 # =========================
@@ -36,8 +37,9 @@ def run_offline_attitude_sim():
 
         # controller output -> motor commands
         input = Controller.update(angle_setpoint, quat_to_euler(Quad.q), np.zeros(3), Quad.params.mass * 9.81)
-
+        tim = time.time()
         Quad.step(input, dt)
+        print(np.round(time.time() - tim, 5))
         Log.log(Quad, Controller, step, dt)
     
     print("Finished simulation in " + str(np.round(time.time() - start_time, 2)) + "s")
@@ -55,16 +57,15 @@ def run_px4_sitl_sim():
     baro_freq = 50 #Hz
     gnss_freq = 5 #Hz
 
-    sensors = SensorSuite(dt_sim, imu_freq, mag_freq, baro_freq, gnss_freq)
+    sim = Simulator()
 
-    quadParams = QuadcopterParam()
-    quad = QuadcopterDynamics(quadParams)
+    sensors = SensorSuite(dt_sim, imu_freq, mag_freq, baro_freq, gnss_freq)
 
     viz = DroneVis(update_hz=60)
 
     px4 = connectToPX4SITL()
 
-    ncmd = np.zeros(4)
+    u = np.zeros(4)
     step = 0
 
     print("Starting PX4 SITL simulation")
@@ -72,17 +73,17 @@ def run_px4_sitl_sim():
         while True:
             now = int(time.time() * 1e6)
 
-            quad.step(ncmd, dt_sim)
-            sensors.step(step, quad)
+            sim.step(u, dt_sim, V_bat=50, T_amb=20)
+            sensors.step(step, sim.veh)
 
             sendSensorsMessage(px4, sensors, step, now)
 
-            controls = receiveActuatorControls(px4, quad)
+            controls = receiveActuatorControls(px4)
             if controls is not None:
-                ncmd = controls
+                u = controls
             
             if step % 16 == 0:
-                viz.update(quat_to_R(quad.q), quad.pos, quad.n)
+                viz.update(sim.veh.get_state())
 
             step += 1
             if step == 10**6:

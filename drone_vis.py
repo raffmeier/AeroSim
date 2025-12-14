@@ -2,6 +2,7 @@ import multiprocessing as mp
 import time
 import numpy as np
 import queue as queue_mod
+from utils import *
 
 
 def _vis_process(q, arm_length, update_hz):
@@ -167,8 +168,13 @@ class DroneVis:
         )
         self.proc.start()
 
-    def update(self, R, pos, w):
+    def update(self, state):
         try:
+            q = state[6:10]
+            R = quat_to_R(q)
+            pos = state[0:3]
+            w = state[13::3]
+            
             self.queue.put_nowait((R, pos, w))
         except queue_mod.Full:
             # drop frame if visualizer is behind
