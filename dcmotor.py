@@ -5,17 +5,17 @@ class MotorParam():
     def __init__(self):
         self.R_brake = 1             # Brake resistor, Ohm
 
-        self.J_mot = 1.3 * 10**-4    # Motor inertia, kg*m2
-        self.b = 0.00035             # Motor damping constant, kg*m2/s
+        self.J_mot = 3.07 * 10**-6   # Motor inertia, kg*m2
+        self.b = 0.00079             # Motor damping constant, kg*m2/s
 
-        self.L = 0.048 * 10**-3      # Motor inductance, H
-        self.k_T = 0.0649            # Torque constant, Nm/A
+        self.L = 0.0949 * 10**-3     # Motor inductance, H
+        self.k_T = 0.0113            # Torque constant, Nm/A
         self.k_e = self.k_T          # Back EMF constant, Nm/A
-        self.R_w0 = 0.103            # Winding resistance at T_rw0, Ohm
+        self.R_w0 = 0.160            # Winding resistance at T_rw0, Ohm
         self.T_rw0 = 20              # Temperature for winding resistance value, degC
 
-        self.c_thermal = 19.45       # Winding thermal capacitance, J/K
-        self.R_th = 0.55             # Thermal resistance, K/W
+        self.c_thermal = 3.64        # Winding thermal capacitance, J/K
+        self.R_th = 0.3              # Thermal resistance, K/W
     
 class DCMotor():
 
@@ -36,17 +36,30 @@ class DCMotor():
 
         self.J_tot = self.params.J_mot + J_load
         self.R_tot = self._get_winding_resistance()
+
+    def get_state(self):
+        return np.array([self.omega, self.current, self.temp])
     
-    def get_state_derivative(self, u, V_bat, tau_load, T_amb):
+    def set_state(self, state):
+        self.omega = state[0]
+        self.current = state[1]
+        self.temp = state[2]
+
+    def get_state_derivative(self, state, u, V_bat, tau_load, T_amb):
+
+        # Unpack state
+        omega = state[0]
+        current = state[1]
+        temp = state[2]
 
         if self.simulate_electrial_dynamics == True:
             V = V_bat * u
-            current_dot = (V - self.R_tot * self.current - self.params.k_e * self.omega) / self.params.L
+            current_dot = (V - self.R_tot * current - self.params.k_e * omega) / self.params.L
         else:
             current_dot = 0.0
 
-        omega_dot = (self.params.k_T * self.current - self.params.b * self.omega - tau_load) / self.J_tot
-        temp_dot = ((self.current ** 2) * self.R_tot - (self.temp - T_amb) / self.params.R_th) / self.params.c_thermal
+        omega_dot = (self.params.k_T * current - self.params.b * omega - tau_load) / self.J_tot
+        temp_dot = ((current ** 2) * self.R_tot - (temp - T_amb) / self.params.R_th) / self.params.c_thermal
 
         return np.array([omega_dot, current_dot, temp_dot])
     
