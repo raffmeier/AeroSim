@@ -1,13 +1,15 @@
 import numpy as np
 import time
+from vehicle import Vehicle
 from multicopter import Multicopter
+from integrator import Integrator
 from integrator import RK4, Euler
 
 class Simulator:
 
-    def __init__(self):
-        self.veh = Multicopter()
-        self.integrator = RK4()
+    def __init__(self, veh: Vehicle, integrator: Integrator):
+        self.veh = veh
+        self.integrator = integrator
     
     def step(self, u, dt, V_bat, T_amb):
 
@@ -22,7 +24,9 @@ class Simulator:
 
 
 if __name__ == "__main__":
-    sim = Simulator()
+    veh = Multicopter()
+    rk4 = RK4()
+    sim = Simulator(veh, rk4)
 
     u = np.full(4, 1)
     dt = 0.001

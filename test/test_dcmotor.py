@@ -7,11 +7,11 @@ from controller.motor_velocity_pi import MotorVelocityController
 from matplotlib import pyplot as plt
 
 dt = 0.001
-timesteps = 1000
+timesteps = 100000
 V_bat = 50.0
 T_amb = 20.0
-omega_ref = 300.0
-J_prop = 1.79 * 10**-3
+omega_ref = 1040.0
+J_prop = 7.15 * 10**-5
 
 simulate_electrical_dynamics = False
 
@@ -39,16 +39,17 @@ start = time.time()
 
 for k in range(1, timesteps):
 
-    if k == 500:
-        omega_ref = 0
-    if k == 800:
-        omega_ref = 300
+    #if k == 500:
+    #    omega_ref = 0
+    #if k == 800:
+    #    omega_ref = 300
 
     motor.update(u, V_bat=V_bat, is_braking=ctrl.is_braking)
 
-    tau_prop = 1.4 * 10**-5 * motor.omega**2
+    tau_prop = 1.36 * 10**-7 * motor.omega**2
+    print(tau_prop)
 
-    state_dot = motor.get_state_derivative(u, V_bat, tau_prop, 20)
+    state_dot = motor.get_state_derivative(motor.get_state(), u, V_bat, tau_prop, 20)
 
     omega = motor.omega + dt * state_dot[0]
     current = motor.current + dt * state_dot[1]

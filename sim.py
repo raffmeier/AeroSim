@@ -8,26 +8,42 @@ from sensor.sensor import SensorSuite
 from mavlink_util import *
 from drone_vis import DroneVis
 from simulator import Simulator
+from controller.motor_velocity_pi import MotorVelocityController
+from dcmotor import DCMotor, MotorParam
+from integrator import Integrator, RK4, Euler
+from multicopter import Multicopter 
 
 
 # =========================
 #   SIM MODE 1: OFFLINE Attitude PID
 # =========================
 def run_offline_attitude_sim():
-    dt = 0.01
+    dt_sim = 0.002
     t_sim = 20
-    timesteps = int(t_sim/dt)
+    timesteps = int(t_sim/dt_sim)
 
-    QuadParams = QuadcopterParam()
-    Quad = QuadcopterDynamics(QuadParams)
-    Log = Logger(timesteps)
+    nmax = 1225
 
-    Controller = AttitudePID(dt)
+    quad = Multicopter()
+    rk4 = RK4()
+
+    sim = Simulator(quad, rk4)
+
+    motor_ctrl = [MotorVelocityController(quad.motors[i], dt_sim, simulate_electrical_dynamics=False) for i in range(4)]
+
+    viz = DroneVis(update_hz=60)
+
+    u = np.zeros(4)
+    omega_ref = np.zeros(4)
+
+    Controller = AttitudePID(dt_sim)
 
     start_time = time.time()
 
     print("Starting offline attitude PID simulation")
     for step in range(timesteps):
+        now = int(time.time() * 1e6)
+
         # default: zero attitude
         angle_setpoint = np.array([0, 0, 0])
 
@@ -35,16 +51,34 @@ def run_offline_attitude_sim():
         if(step > 400 and step < 800):
             angle_setpoint = np.array([0.0, 0.35, 0])
 
+        # Dynamics
+        sim.step(u, dt_sim, V_bat=50, T_amb=20)
+
         # controller output -> motor commands
-        input = Controller.update(angle_setpoint, quat_to_euler(Quad.q), np.zeros(3), Quad.params.mass * 9.81)
-        tim = time.time()
-        Quad.step(input, dt)
-        print(np.round(time.time() - tim, 5))
-        Log.log(Quad, Controller, step, dt)
+        omega_ref = Controller.update(angle_setpoint, quat_to_euler(quad.get_state()[6:10]), np.zeros(3), quad.rb.mass * 15.81)
+
+        #print(omega_ref)
+
+        for i, mctrl in enumerate(motor_ctrl):
+            u[i] = mctrl.update(omega_ref[i], V_bat=50)
+        
+        print(quad.get_state())
+        
+        if step % 16 == 0:
+                viz.update(sim.veh.get_state())
+        
+        elapsed = time.time() - now / 1e6
+        sleeptime = dt_sim - elapsed
+        if sleeptime > 0:
+            #print("Info: PX4 SITL simulation is running real-time! "+ str(elapsed) +"         " + str(step))
+            time.sleep(sleeptime)
+        else:
+            #print("Warning: Offline simulation is running slower than real-time! "+ str(elapsed) +"         " + str(step))
+            pass
+
+
     
     print("Finished simulation in " + str(np.round(time.time() - start_time, 2)) + "s")
-    plot(Log)
-    Log.save_csv('output/log.csv')
 
 
 # =========================
@@ -57,7 +91,12 @@ def run_px4_sitl_sim():
     baro_freq = 50 #Hz
     gnss_freq = 5 #Hz
 
-    sim = Simulator()
+    quad = Multicopter()
+    rk4 = RK4()
+
+    sim = Simulator(quad, rk4)
+
+    motor_ctrl = [MotorVelocityController(quad.motors[i], dt_sim, simulate_electrical_dynamics=False) for i in range(4)]
 
     sensors = SensorSuite(dt_sim, imu_freq, mag_freq, baro_freq, gnss_freq)
 
@@ -66,6 +105,7 @@ def run_px4_sitl_sim():
     px4 = connectToPX4SITL()
 
     u = np.zeros(4)
+    omega_ref = np.zeros(4)
     step = 0
 
     print("Starting PX4 SITL simulation")
@@ -81,6 +121,9 @@ def run_px4_sitl_sim():
             controls = receiveActuatorControls(px4)
             if controls is not None:
                 u = controls
+            
+            for mctrl, i in enumerate(motor_ctrl):
+                u[i] = mctrl.update(1225 * u[i], V_bat=50)
             
             if step % 16 == 0:
                 viz.update(sim.veh.get_state())

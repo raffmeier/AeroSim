@@ -1,9 +1,11 @@
-
-class Euler():
+class Integrator():
+    def step():
+          raise NotImplementedError()
+class Euler(Integrator):
     def step(self, f, state, u, dt, V_bat, T_amb):
             return state + dt * f(state, u, V_bat, T_amb)
 
-class RK4():
+class RK4(Integrator):
     def step(self, f, state, u, dt, V_bat, T_amb):
             k1 = f(state, u, V_bat, T_amb)
             k2 = f(state + 0.5*dt*k1, u, V_bat, T_amb)
