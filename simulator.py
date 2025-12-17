@@ -1,7 +1,7 @@
 import numpy as np
 import time
-from vehicle import Vehicle
-from multicopter import Multicopter
+from vehicle.vehicle import Vehicle
+from vehicle.multicopter import Multicopter
 from integrator import Integrator
 from integrator import RK4, Euler
 

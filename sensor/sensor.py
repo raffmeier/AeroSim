@@ -3,9 +3,9 @@ from sensor.imu import IMU, IMUParam
 from sensor.mag import Magnetometer, MagParam
 from sensor.baro import Barometer, BaroParam
 from sensor.gnss import GNSS, GNSSParam
-from utils import quat_to_R, getPressure
-from vehicle import Vehicle
-import constants
+from common.utils import quat_to_R, getPressure
+from vehicle.vehicle import Vehicle
+import common.constants as constants
 
 class SensorSuite:
     def __init__(self, sim_dt, imu_freq, mag_freq, baro_freq, gnss_freq):

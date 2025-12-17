@@ -9,9 +9,9 @@ from mavlink_util import *
 from drone_vis import DroneVis
 from simulator import Simulator
 from controller.motor_velocity_pi import MotorVelocityController
-from dcmotor import DCMotor, MotorParam
+from actuator.dcmotor import DCMotor, MotorParam
 from integrator import Integrator, RK4, Euler
-from multicopter import Multicopter 
+from vehicle.multicopter import Multicopter 
 
 
 # =========================

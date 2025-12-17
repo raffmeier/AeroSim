@@ -4,7 +4,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-import constants
+import common.constants as constants
 
 class GNSSParam:
     def __init__(self):

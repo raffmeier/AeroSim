@@ -1,9 +1,9 @@
 import numpy as np
 from pymavlink import mavutil
 from sensor.sensor import SensorSuite
-from utils import getAltitude
+from common.utils import getAltitude
 from quad import QuadcopterDynamics
-import constants
+import common.constants as constants
 
 def connectToPX4SITL():
     master = mavutil.mavlink_connection('tcpin:0.0.0.0:4560')

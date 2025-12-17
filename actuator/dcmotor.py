@@ -6,16 +6,16 @@ class MotorParam():
         self.R_brake = 1             # Brake resistor, Ohm
 
         self.J_mot = 3.07 * 10**-6   # Motor inertia, kg*m2
-        self.b = 0.00003             # Motor damping constant, kg*m2/s
+        self.b = 1.65 * 10**-5        # Motor damping constant, kg*m2/s
 
         self.L = 0.0949 * 10**-3     # Motor inductance, H
         self.k_T = 0.0113            # Torque constant, Nm/A
         self.k_e = self.k_T          # Back EMF constant, Nm/A
-        self.R_w0 = 0.160            # Winding resistance at T_rw0, Ohm
+        self.R_w0 = 0.080            # Winding resistance at T_rw0, Ohm
         self.T_rw0 = 20              # Temperature for winding resistance value, degC
 
-        self.c_thermal = 30        # Winding thermal capacitance, J/K
-        self.R_th = 4                # Thermal resistance, K/W
+        self.c_thermal = 1.59          # Winding thermal capacitance, J/K
+        self.R_th = 5               # Thermal resistance, K/W
     
 class DCMotor():
 

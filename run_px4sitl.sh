@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 PX4_DIR="$HOME/Projects/PX4-Autopilot"
-PHYSICS_SIM="$HOME/Projects/AeroSim/sim.py"
+PHYSICS_SIM="$HOME/Projects/AeroSim/run_sim.py"
 QGC="$HOME/QGC/QGroundControl-x86_64.AppImage"
 
 # First tab: QGC

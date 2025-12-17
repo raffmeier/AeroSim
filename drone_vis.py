@@ -2,7 +2,7 @@ import multiprocessing as mp
 import time
 import numpy as np
 import queue as queue_mod
-from utils import *
+from common.utils import *
 
 
 def _vis_process(q, arm_length, update_hz):

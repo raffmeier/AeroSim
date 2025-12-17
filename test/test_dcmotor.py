@@ -2,7 +2,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import time
 import numpy as np
-from dcmotor import DCMotor, MotorParam
+from actuator.dcmotor import DCMotor, MotorParam
 from controller.motor_velocity_pi import MotorVelocityController
 from matplotlib import pyplot as plt
 
@@ -10,13 +10,17 @@ dt = 0.001
 timesteps = 100000
 V_bat = 50.0
 T_amb = 20.0
-omega_ref = 1040.0
-J_prop = 7.15 * 10**-5
+omega_ref = 3600 * 0.10472
+#J_prop1 = 7.15 * 10**-5
+J_prop2 = 1.21 * 10**-4
+
+kq_prop1 = 1.36 * 10**-7
+kq_prop2 = 1.9 * 10**-7
 
 simulate_electrical_dynamics = False
 
 motor_param = MotorParam()
-motor = DCMotor(motor_param, T_amb, J_prop, simulate_electrical_dynamics)
+motor = DCMotor(motor_param, T_amb, J_prop2, simulate_electrical_dynamics)
 
 ctrl = MotorVelocityController(motor, dt, simulate_electrical_dynamics)
 
@@ -46,8 +50,7 @@ for k in range(1, timesteps):
 
     motor.update(u, V_bat=V_bat, is_braking=ctrl.is_braking)
 
-    tau_prop = 1.36 * 10**-7 * motor.omega**2
-    print(tau_prop)
+    tau_prop = kq_prop2 * motor.omega**2
 
     state_dot = motor.get_state_derivative(motor.get_state(), u, V_bat, tau_prop, 20)
 
@@ -116,6 +119,7 @@ plt.grid()
 plt.subplot(3, 2, 5)
 plt.title('Winding temperature')
 plt.plot(timeaxis, states[2, :])
+plt.plot(timeaxis, np.full(timesteps,155), color='red')
 plt.grid()
 
 plt.subplot(3, 2, 6)

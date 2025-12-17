@@ -1,8 +1,8 @@
 import numpy as np
 from rigid_body_6dof import RigidBody6DOF
-from dcmotor import DCMotor, MotorParam
-from utils import *
-from vehicle import Vehicle
+from actuator.dcmotor import DCMotor, MotorParam
+from common.utils import *
+from vehicle.vehicle import Vehicle
 
 class Multicopter(Vehicle):
 
