@@ -19,7 +19,7 @@ kq_prop2 = 1.9 * 10**-7
 
 simulate_electrical_dynamics = False
 
-motor_param = MotorParam()
+motor_param = MotorParam('maxon_ecx32_flat_uav')
 motor = DCMotor(motor_param, T_amb, J_prop2, simulate_electrical_dynamics)
 
 ctrl = MotorVelocityController(motor, dt, simulate_electrical_dynamics)

@@ -1,21 +1,41 @@
 import numpy as np
+import os
+import json
 
 class MotorParam():
 
-    def __init__(self):
+    def __init__(self, motor_name: str):
+
+        base_dir = os.path.dirname(__file__)
+        motor_file = os.path.join(
+            base_dir,
+            "..",          # actuator
+            "parameter",
+            "motor",
+            f"{motor_name}.json"
+        )
+
+        if not os.path.isfile(motor_file):
+            raise FileNotFoundError(
+                f"Motor file not found: {motor_file}"
+            )
+
+        with open(motor_file, "r") as f:
+            data = json.load(f)
+
         self.R_brake = 1             # Brake resistor, Ohm
 
-        self.J_mot = 3.07 * 10**-6   # Motor inertia, kg*m2
-        self.b = 1.65 * 10**-5        # Motor damping constant, kg*m2/s
+        self.J_mot = data["J_mot"]   # Motor inertia, kg*m2
+        self.b = data["b"]       # Motor damping constant, kg*m2/s
 
-        self.L = 0.0949 * 10**-3     # Motor inductance, H
-        self.k_T = 0.0113            # Torque constant, Nm/A
-        self.k_e = self.k_T          # Back EMF constant, Nm/A
-        self.R_w0 = 0.080            # Winding resistance at T_rw0, Ohm
-        self.T_rw0 = 20              # Temperature for winding resistance value, degC
+        self.L = data["L"]     # Motor inductance, H
+        self.k_T = data["k_T"]            # Torque constant, Nm/A
+        self.k_e = data["k_e"]         # Back EMF constant, Nm/A
+        self.R_w0 = data["R_w0"]            # Winding resistance at T_rw0, Ohm
+        self.T_rw0 = data["T_Rw0"]              # Temperature for winding resistance value, degC
 
-        self.c_thermal = 1.59          # Winding thermal capacitance, J/K
-        self.R_th = 5               # Thermal resistance, K/W
+        self.c_thermal = data["C_w"]          # Winding thermal capacitance, J/K
+        self.R_th = data["R_w"]               # Thermal resistance, K/W
     
 class DCMotor():
 
