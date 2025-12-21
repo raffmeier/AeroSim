@@ -8,10 +8,11 @@ from sensor.sensor import SensorSuite
 from mavlink_util import *
 from drone_vis import DroneVis
 from simulator import Simulator
-from controller.motor_velocity_pi import MotorVelocityController
+from controller.motor_velocity_pi import MotorVelocityController, MotorVelocityControllerParam
 from actuator.dcmotor import DCMotor, MotorParam
 from integrator import Integrator, RK4, Euler
-from vehicle.multicopter import Multicopter 
+from vehicle.multicopter import Multicopter, MulticopterParam
+from datetime import datetime
 
 
 # =========================
@@ -29,7 +30,8 @@ def run_offline_attitude_sim():
 
     sim = Simulator(quad, rk4)
 
-    motor_ctrl = [MotorVelocityController(quad.motors[i], dt_sim, simulate_electrical_dynamics=False) for i in range(4)]
+    ctrl_param = MotorVelocityControllerParam('ctrl_maxon_ecx32_flat_uav')
+    motor_ctrl = [MotorVelocityController(ctrl_param, quad.motors[i], dt_sim, command_type='actuator_effort', simulate_electrical_dynamics=False) for i in range(4)]
 
     viz = DroneVis(update_hz=60)
 
@@ -86,56 +88,74 @@ def run_offline_attitude_sim():
 # =========================
 def run_px4_sitl_sim():
     dt_sim = 0.001 #1 ms simulation step
+    step = 0
+
     imu_freq = 250 #Hz
     mag_freq = 10 #Hz
     baro_freq = 50 #Hz
     gnss_freq = 5 #Hz
 
-    quad = Multicopter()
-    rk4 = RK4()
+    logger = Logger()
 
+    mcp = MulticopterParam('test_quad')
+    quad = Multicopter(mcp)
+    
+    rk4 = RK4()
     sim = Simulator(quad, rk4)
 
-    motor_ctrl = [MotorVelocityController(quad.motors[i], dt_sim, simulate_electrical_dynamics=False) for i in range(4)]
-
     sensors = SensorSuite(dt_sim, imu_freq, mag_freq, baro_freq, gnss_freq)
+
+    ctrl_param = MotorVelocityControllerParam('ctrl_maxon_ecx32_flat_uav')
+    motor_ctrl = [MotorVelocityController(ctrl_param, quad.motors[i], dt_sim, command_type='actuator_effort', simulate_electrical_dynamics=False) for i in range(4)]
 
     viz = DroneVis(update_hz=60)
 
     px4 = connectToPX4SITL()
 
     u = np.zeros(4)
-    omega_ref = np.zeros(4)
-    step = 0
+    actuator_effort = np.zeros(4)
 
     print("Starting PX4 SITL simulation")
     try:
         while True:
-            now = int(time.time() * 1e6)
+            # Time
+            now = time.time()
+            now_us = int(now * 1e6)
 
+            # Step simulation
             sim.step(u, dt_sim, V_bat=50, T_amb=20)
+
+            # Measure sensor and send to PX4
             sensors.step(step, sim.veh)
+            sendSensorsMessage(px4, sensors, step, now_us)
 
-            sendSensorsMessage(px4, sensors, step, now)
-
+            # Receive control commands from PX4 and send to PI motor controller
             controls = receiveActuatorControls(px4)
             if controls is not None:
-                u = controls
+                actuator_effort = controls
+
+            for i, mctrl in enumerate(motor_ctrl):
+                u[i] = mctrl.update(actuator_effort[i], V_bat=50)
             
-            for mctrl, i in enumerate(motor_ctrl):
-                u[i] = mctrl.update(1225 * u[i], V_bat=50)
-            
+            # Update visualisation
             if step % 16 == 0:
                 viz.update(sim.veh.get_state())
 
+            # Advance sim step
             step += 1
             if step == 10**6:
                 step = 0
+            
+            if step % 20 == 0:
+                # Log multicopter and motor controllers
+                quad.log(logger, now)
+                for i, mctrl in enumerate(motor_ctrl):
+                    mctrl.log(logger, f"m{i}.")
 
-            elapsed = time.time() - now / 1e6
+            # Sleep for remaining time
+            elapsed = time.time() - now
             sleeptime = dt_sim - elapsed
             if sleeptime > 0:
-                #print("Info: PX4 SITL simulation is running real-time! "+ str(elapsed) +"         " + str(step))
                 time.sleep(sleeptime)
             else:
                 print("Warning: PX4 SITL simulation is running slower than real-time! "+ str(elapsed) +"         " + str(step))
@@ -146,6 +166,10 @@ def run_px4_sitl_sim():
     
     finally:
         viz.close()
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logger.save_to_csv(f"output/log_{ts}.csv")
+        plot_all(f"output/log_{ts}.csv", motor_prefixes=["m0", "m1", "m2", "m3"])
+        plt.show()
 
 
 # =========================

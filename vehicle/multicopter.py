@@ -1,23 +1,73 @@
 import numpy as np
 from rigid_body_6dof import RigidBody6DOF
 from actuator.dcmotor import DCMotor, MotorParam
+from propeller import Propeller, PropellerParam
 from common.utils import *
 from vehicle.vehicle import Vehicle
+from logger import Logger
+import os
+import json
+
+class MulticopterParam():
+
+    def __init__(self, multicopter_name: str):
+
+        base_dir = os.path.dirname(__file__)
+        multicopter_file = os.path.join(
+            base_dir,
+            "..",
+            "parameter",
+            "multicopter",
+            f"{multicopter_name}.json"
+        )
+
+        if not os.path.isfile(multicopter_file):
+            raise FileNotFoundError(
+                f"Multicopter file not found: {multicopter_file}"
+            )
+
+        with open(multicopter_file, "r") as f:
+            data = json.load(f)
+
+
+        # --- load parameters ---
+
+        self.mass = data["mass"]
+
+        I = data["inertia"]
+        self.inertia = np.array([
+            [I["ixx"], I["ixy"], I["ixz"] ],
+            [I["ixy"], I["iyy"], I["iyz"] ],
+            [I["ixz"], I["iyz"], I["izz"] ]
+        ])
+
+        CdA = data["CdA"]
+        self.CdA = np.array([CdA["CdAx"], CdA["CdAy"], CdA["CdAz"]])
+        self.arm = data["arm_length"]
+
+        self.motor_param_name = data["motor"]
+        self.propeller_param_name = data["propeller"]
+
 
 class Multicopter(Vehicle):
 
-    def __init__(self):
+    def __init__(self, params: MulticopterParam):
+
+        self.params = params
         
-        self.rb = RigidBody6DOF()
+        self.rb = RigidBody6DOF(self.params.mass, self.params.inertia)
 
-        mp = MotorParam()
-        self.motors = [DCMotor(mp, T_amb=20, J_load=7.15 * 10**-5, simulate_electrical_dynamics=False) for _ in range(4)]
+        pp = PropellerParam(self.params.propeller_param_name)
+        #self.prop = Propeller(pp) <-- ToDo: Implement propeller model in propeller.py
+        #For now: Just get the propeller parameter values here
 
-        self.kT = 8.57 * 10**-6
-        self.kQ = 1.36 * 10**-7
-        self.CdA = np.array([0.02, 0.02, 0.03])
-        self.rho = 1.225
-        self.arm = 0.23
+        self.kT = pp.kT
+        self.kQ = pp.kQ
+
+        mp = MotorParam(self.params.motor_param_name)
+        self.motors = [DCMotor(mp, T_amb=20, J_load=pp.J_prop, simulate_electrical_dynamics=False) for _ in range(4)]
+
+        self.rho = 1.225 # ToDo: Implement environment model
     
     def get_state(self):
         rb_state = self.rb.state
@@ -70,19 +120,20 @@ class Multicopter(Vehicle):
         F_thrust = np.array([0, 0, -np.sum(thrust_prop)])
 
         vel_body = R_wb.T @ vel
-        F_drag = -0.5 * self.rho * self.CdA * vel_body * np.abs(vel_body)
+        F_drag = -0.5 * self.rho * self.params.CdA * vel_body * np.abs(vel_body)
 
         force_body = F_thrust + F_drag
 
         # Torques
-        torque_actuators = self.torque_mixer_quad_plus(thrust_prop, torque_prop, self.arm)
+        torque_actuators = self.torque_mixer_quad_plus(thrust_prop, torque_prop, self.params.arm)
 
         # To Do: add aerodynamic rotational drag
 
         torque_body = torque_actuators
 
         return force_body, torque_body, torque_prop
-    
+
+    # ToDo: Put into propeller class
     def compute_prop_force_torque(self, omega):
 
         omega_squared = np.square(omega)
@@ -109,3 +160,11 @@ class Multicopter(Vehicle):
 
     def get_accel(self):
         return self.rb.accel
+    
+    def log(self, L: Logger, time):
+        L.log_scalar("t", time)
+        
+        self.rb.log(L)
+
+        for i, motor in enumerate(self.motors):
+            motor.log(L, f"m{i}.")

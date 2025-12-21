@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import json
+from logger import Logger
 
 class MotorParam():
 
@@ -23,19 +24,19 @@ class MotorParam():
         with open(motor_file, "r") as f:
             data = json.load(f)
 
-        self.R_brake = 1             # Brake resistor, Ohm
+        self.R_brake = 1                # Brake resistor, Ohm
 
-        self.J_mot = data["J_mot"]   # Motor inertia, kg*m2
-        self.b = data["b"]       # Motor damping constant, kg*m2/s
+        self.J_mot = data["J_mot"]      # Motor inertia, kg*m2
+        self.b = data["b"]              # Motor damping constant, kg*m2/s
 
-        self.L = data["L"]     # Motor inductance, H
-        self.k_T = data["k_T"]            # Torque constant, Nm/A
-        self.k_e = data["k_e"]         # Back EMF constant, Nm/A
-        self.R_w0 = data["R_w0"]            # Winding resistance at T_rw0, Ohm
-        self.T_rw0 = data["T_Rw0"]              # Temperature for winding resistance value, degC
+        self.L = data["L"]              # Motor inductance, H
+        self.k_T = data["k_T"]          # Torque constant, Nm/A
+        self.k_e = data["k_e"]          # Back EMF constant, Nm/A
+        self.R_w0 = data["R_w0"]        # Winding resistance at T_rw0, Ohm
+        self.T_rw0 = data["T_Rw0"]      # Temperature for winding resistance value, degC
 
-        self.c_thermal = data["C_w"]          # Winding thermal capacitance, J/K
-        self.R_th = data["R_w"]               # Thermal resistance, K/W
+        self.c_thermal = data["C_w"]    # Winding thermal capacitance, J/K
+        self.R_th = data["R_w"]         # Thermal resistance, K/W
     
 class DCMotor():
 
@@ -47,24 +48,24 @@ class DCMotor():
         self.params = params
 
         # State
-        self.omega = 0          # rad/s
-        self.current = 0        # A
-        self.temp = T_amb       # degC
+        self.state = np.array([0.0, 0.0, float(T_amb)], dtype=np.float64) # omega (rad/s), RMS motor current (A), winding temperature (degC)
 
-        #
-        self.input_u = 0        # 0..1
-
+        # Extended metrics
+        self.voltage = 0                 # RMS terminal voltage V, 0..Vbat
         self.J_tot = self.params.J_mot + J_load
         self.R_tot = self._get_winding_resistance()
 
     def get_state(self):
-        return np.array([self.omega, self.current, self.temp])
+        return self.state
     
     def set_state(self, state):
-        self.omega = state[0]
-        self.current = state[1]
-        self.temp = state[2]
-
+        #If electrical dynamics are simulated -> take current from integrator, otherwise keep algebraic current
+        if self.simulate_electrial_dynamics:
+            self.state[1] = state[1]
+        
+        self.state[0] = state[0]
+        self.state[2] = state[2]
+    
     def get_state_derivative(self, state, u, V_bat, tau_load, T_amb):
 
         # Unpack state
@@ -84,38 +85,28 @@ class DCMotor():
         return np.array([omega_dot, current_dot, temp_dot])
     
     def update(self, u, V_bat, is_braking):
-        self.input_u = u
+        self.voltage = u * V_bat
 
         R_w = self._get_winding_resistance()
 
         if is_braking:
             self.R_tot = R_w + self.params.R_brake
-            self.input_u = 0.0           # brake mode
+            self.voltage = 0.0           # brake mode
         else:
             self.R_tot = R_w             # normal mode
 
         if not self.simulate_electrial_dynamics:
-            self.current = (self.input_u * V_bat - self.params.k_e * self.omega) / self.R_tot # algebraic current (electrical dynamics + controller are fast)
+            current = (self.voltage - self.params.k_e * self.state[0]) / self.R_tot # algebraic current (electrical dynamics + controller are fast)
+            self.state[1] = current
 
-    
-    def set_state(self, state):
-        #If electrical dynamics are simulated -> take current from integrator, otherwise keep algebraic current
-        if self.simulate_electrial_dynamics:
-            self.current = state[1]
-        
-        self.omega = state[0]
-        self.temp = state[2]
-
-    def log(self):
-        log = {
-            "omega": self.omega,
-            "current": self.current,
-            "T_winding": self.temp,
-            "input_u": self.input_u,
-            "R_tot": self.R_tot
-        }
-        return log
+    def log(self, L: Logger, prefix: str):
+        state = self.state
+        L.log_scalar(f"{prefix}omega", state[0])
+        L.log_scalar(f"{prefix}current", state[1])
+        L.log_scalar(f"{prefix}temp", state[2])
+        L.log_scalar(f"{prefix}voltage", self.voltage)
+        L.log_scalar(f"{prefix}resistance", self.R_tot)
     
     def _get_winding_resistance(self):
-        return self.params.R_w0 * (1 + 0.00393 * (self.temp - self.params.T_rw0))
+        return self.params.R_w0 * (1 + 0.00393 * (self.state[2] - self.params.T_rw0))
 

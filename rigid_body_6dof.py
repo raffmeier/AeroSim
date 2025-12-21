@@ -1,19 +1,23 @@
 import numpy as np
 from common.utils import *
 import common.constants as constants
+from logger import Logger
+from common.utils import quat_to_euler
 
 class RigidBody6DOF():
 
-    def __init__(self):
-        self.mass = 1.5
-        self.inertia = np.diag(np.array([0.0348, 0.0459, 0.0977]))
+    def __init__(self, mass, inertia):
+        self.mass = mass
+        self.inertia = inertia
         self.inv_inertia = np.linalg.inv(self.inertia)
 
-        self.gravity_NED = constants.GRAVITY_NED
-
+        # State
         self.state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) # 3 position, 3 velocity, 4 attitude quaternion, 3 body rates
-
+        
+        # Extended metrics
         self.accel = np.zeros(3)
+
+        self.gravity_NED = constants.GRAVITY_NED
     
     def get_state_derivative(self, state, force_body, torque_body):
         
@@ -57,3 +61,12 @@ class RigidBody6DOF():
             self.state[2] = 0
             self.state[5] = 0
             self.accel[2] = 0
+    
+    def log(self, L: Logger):
+        state = self.state
+        L.log_vector("pos", state[0:3])
+        L.log_vector("vel", state[3:6])
+        L.log_vector("quat", state[6:10])
+        L.log_vector("rate", state[10:13])
+        L.log_vector("accel", self.accel)
+        L.log_vector("eulerangles", quat_to_euler(state[6:10]))

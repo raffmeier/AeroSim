@@ -1,0 +1,20 @@
+{
+    "mass": 1.5,
+    "arm_length": 0.23,
+    "inertia": {
+        "ixx": 0.0348,
+        "iyy": 0.0459,
+        "izz": 0.0977,
+        "ixy": 0.0,
+        "ixz": 0.0,
+        "iyz": 0.0
+    },
+    "CdA": {
+        "CdAx": 0.02,
+        "CdAy": 0.02,
+        "CdAz": 0.03
+    },
+    "motor": "maxon_ecx32_flat_uav",
+    "propeller": "apc_9x4.5MR"
+  
+}
