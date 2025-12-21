@@ -15,8 +15,8 @@ def _vis_process(q, arm_length, update_hz):
 
     L = arm_length
     rotor_centers_body = np.array([[L, 0, 0],
-                                   [-L, 0, 0],
                                    [0, L, 0],
+                                   [-L, 0, 0],
                                    [0, -L, 0]]).T
 
     # rotor locations
@@ -81,8 +81,8 @@ def _vis_process(q, arm_length, update_hz):
         )
 
         # update arms
-        arm_x = rotor_world[:, 0:2]
-        arm_y = rotor_world[:, 2:4]
+        arm_x = rotor_world[:, [0, 2]]   # +x to -x
+        arm_y = rotor_world[:, [1, 3]]   # +y to -y
 
         arm_x_line.set_data(arm_x[0, :], arm_x[1, :])
         arm_x_line.set_3d_properties(arm_x[2, :])
