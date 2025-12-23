@@ -93,7 +93,7 @@ class Propeller():
         cQ0 = self.params.cQ2 * J0**2 + self.params.cQ1 * J0 + self.params.cQ0
 
         # Exponential fade region (J > J0)
-        k = .0
+        k = 5.0
         fade = np.exp(-k * (advance_ratio - J0))
         cT_fade = cT0 * fade
         cQ_fade = cQ0 * fade
