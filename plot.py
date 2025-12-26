@@ -55,7 +55,7 @@ def plot_dashboard(d):
 
 def plot_motor_dashboard(d, motor_prefix):
     def arr(name):
-        return np.asarray(d[f"{motor_prefix}.{name}"], dtype=float)
+        return np.asarray(d[f"{motor_prefix}{name}"], dtype=float)
 
     omega = arr("omega")
     omega_ref = arr("omegapid.setpoint")
@@ -63,7 +63,10 @@ def plot_motor_dashboard(d, motor_prefix):
     current_ref = arr("current_ref")
     voltage = arr("voltage")
     resistance = arr("resistance")
-    temp = arr("temp")
+    resistive_loss = arr("resistive_loss")
+    mechanical_loss = arr("mechanical_loss")
+    temp_winding = arr("temp_winding")
+    temp_housing = arr("temp_housing")
 
     t = _time_axis(d)
 
@@ -86,12 +89,15 @@ def plot_motor_dashboard(d, motor_prefix):
 
     axs[3].set_title(f"{motor_prefix} Power")
     axs[3].plot(t, voltage * current, label="Electrical")
-    axs[3].plot(t, current**2 * resistance, label="Resistive")
+    axs[3].plot(t, resistive_loss, label="Resistive loss")
+    axs[3].plot(t, mechanical_loss, label="Mechanical loss")
+    axs[3].plot(t, resistive_loss + mechanical_loss, label="Total loss")
     axs[3].grid(); axs[3].legend()
 
     axs[4].set_title(f"{motor_prefix} Temp")
-    axs[4].plot(t, temp, label="Winding temp")
-    axs[4].plot(t, np.full_like(t, 155.0), "r", label="Max winding temp")
+    axs[4].plot(t, temp_winding, label="Winding temp", color='orangered')
+    axs[4].plot(t, temp_housing, label="Housing temp", color='cornflowerblue')
+    axs[4].axhline(y=155, linestyle='--', label='155degC', color='red')
     axs[4].grid(); axs[4].legend()
 
     axs[5].set_title(f"{motor_prefix} Resistance")

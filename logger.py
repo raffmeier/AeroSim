@@ -1,5 +1,4 @@
 import numpy as np
-from quad import *
 from common.utils import *
 import csv
 from matplotlib import pyplot as plt

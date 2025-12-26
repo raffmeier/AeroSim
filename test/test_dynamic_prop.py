@@ -8,13 +8,24 @@ pp = PropellerParam('mejzlik_26.5x16.2_2B')
 prop = Propeller(pp)
 
 omegas = np.linspace(0, 350, 51)         # rad/s
-v_infs = np.linspace(0, 25, 51)          # m/s
+v_infs = np.linspace(-5, 25, 51)          # m/s
 
-# Grid
-O, V = np.meshgrid(omegas, v_infs, indexing="xy")
+O, V = np.meshgrid(omegas, v_infs)
 
-# Evaluate over full grid
-T, Q, advr, prop_eff = prop.get_dynamic_force_torque(O, V)
+T = np.zeros_like(O, dtype=float)
+Q = np.zeros_like(O, dtype=float)
+advr = np.zeros_like(O, dtype=float)
+
+# --- Evaluate over full grid ---
+for i in range(O.shape[0]):
+    for j in range(O.shape[1]):
+        omega = float(O[i, j])
+        vinf  = float(V[i, j])
+
+        t, q = prop.get_dynamic_force_torque(omega, vinf)
+        T[i, j] = t
+        Q[i, j] = q
+        advr[i, j] = prop.advance_ratio
 
 fig = plt.figure(figsize=(16, 8))
 
@@ -39,12 +50,17 @@ ax3.set_ylabel("axial freestream velocity [m/s]")
 ax3.set_zlabel("advance ratio")
 ax3.set_title("Advance ratio surface")
 
-v_slices = [0, 5.0, 10.0, 15.0, 20, 25]
+v_slices = [-5.0, 0, 5.0, 10.0, 15.0, 20, 25]
 
 ax4 = fig.add_subplot(2, 3, 4)
+
 for v in v_slices:
-    V_line = np.full_like(omegas, v)
-    T_line, _, _, _ = prop.get_dynamic_force_torque(omegas, V_line)
+    T_line = np.zeros_like(omegas, dtype=float)
+
+    for k, om in enumerate(omegas):
+        t, _ = prop.get_dynamic_force_torque(float(om), float(v))
+        T_line[k] = t
+
     ax4.plot(omegas, T_line, label=f"V∞={v:g} m/s")
 ax4.set_xlabel("omega [rad/s]")
 ax4.set_ylabel("thrust [N]")
@@ -54,8 +70,12 @@ ax4.legend()
 
 ax5 = fig.add_subplot(2, 3, 5)
 for v in v_slices:
-    V_line = np.full_like(omegas, v)
-    _, Q_line, _, _ = prop.get_dynamic_force_torque(omegas, V_line)
+    Q_line = np.zeros_like(omegas, dtype=float)
+
+    for k, om in enumerate(omegas):
+        _, q = prop.get_dynamic_force_torque(float(om), float(v))
+        Q_line[k] = q
+
     ax5.plot(omegas, Q_line, label=f"V∞={v:g} m/s")
 ax5.set_xlabel("omega [rad/s]")
 ax5.set_ylabel("torque [Nm]")
