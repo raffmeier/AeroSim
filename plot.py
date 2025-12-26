@@ -55,7 +55,7 @@ def plot_dashboard(d):
 
 def plot_motor_dashboard(d, motor_prefix):
     def arr(name):
-        return np.asarray(d[f"{motor_prefix}{name}"], dtype=float)
+        return np.asarray(d[f"{motor_prefix}.{name}"], dtype=float)
 
     omega = arr("omega")
     omega_ref = arr("omegapid.setpoint")
