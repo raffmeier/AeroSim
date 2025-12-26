@@ -35,8 +35,11 @@ class MotorParam():
         self.R_w0 = data["R_w0"]        # Winding resistance at T_rw0, Ohm
         self.T_rw0 = data["T_Rw0"]      # Temperature for winding resistance value, degC
 
-        self.c_thermal = data["C_w"]    # Winding thermal capacitance, J/K
-        self.R_th = data["R_w"]         # Thermal resistance, K/W
+        self.C_th_w = data["C_th_w"]    # Winding thermal capacitance, J/K
+        self.R_th_wh = data["R_th_wh"]  # Thermal resistance winding <-> motor housing, K/W
+
+        self.C_th_h = data["C_th_h"]    # Motor housing thermal capacitance, J/K
+        self.R_th_ha = data["R_th_ha"]  # Thermal resistance motor housing <-> ambient, K/W
     
 class DCMotor():
 
@@ -48,7 +51,7 @@ class DCMotor():
         self.params = params
 
         # State
-        self.state = np.array([0.0, 0.0, float(T_amb)], dtype=np.float64) # omega (rad/s), RMS motor current (A), winding temperature (degC)
+        self.state = np.array([0.0, 0.0, float(T_amb), float(T_amb)], dtype=np.float64) # omega (rad/s), RMS motor current (A), winding temperature (degC), motor housing temperature (degC)
 
         # Extended metrics
         self.voltage = 0                 # RMS terminal voltage V, 0..Vbat
@@ -65,13 +68,15 @@ class DCMotor():
         
         self.state[0] = state[0]
         self.state[2] = state[2]
+        self.state[3] = state[3]
     
     def get_state_derivative(self, state, u, V_bat, tau_load, T_amb):
 
         # Unpack state
         omega = state[0]
         current = state[1]
-        temp = state[2]
+        temp_winding = state[2]
+        temp_housing = state[3]
 
         if self.simulate_electrial_dynamics == True:
             V = V_bat * u
@@ -80,9 +85,10 @@ class DCMotor():
             current_dot = 0.0
 
         omega_dot = (self.params.k_T * current - self.params.b * omega - tau_load) / self.J_tot
-        temp_dot = ((current ** 2) * self.R_tot - (temp - T_amb) / self.params.R_th) / self.params.c_thermal
+        temp_winding_dot = (current** 2 * self.R_tot  - (temp_winding - temp_housing) / self.params.R_th_wh) / self.params.C_th_w
+        temp_housing_dot = (omega**2 * self.params.b + (temp_winding - temp_housing) / self.params.R_th_wh - (temp_housing - T_amb) / self.params.R_th_ha) / self.params.C_th_h
 
-        return np.array([omega_dot, current_dot, temp_dot])
+        return np.array([omega_dot, current_dot, temp_winding_dot, temp_housing_dot])
     
     def update(self, u, V_bat, is_braking):
         self.voltage = u * V_bat
@@ -103,9 +109,12 @@ class DCMotor():
         state = self.state
         L.log_scalar(f"{prefix}omega", state[0])
         L.log_scalar(f"{prefix}current", state[1])
-        L.log_scalar(f"{prefix}temp", state[2])
+        L.log_scalar(f"{prefix}temp_winding", state[2])
+        L.log_scalar(f"{prefix}temp_housing", state[3])
         L.log_scalar(f"{prefix}voltage", self.voltage)
         L.log_scalar(f"{prefix}resistance", self.R_tot)
+        L.log_scalar(f"{prefix}resistive_loss", self.R_tot * state[1]**2)
+        L.log_scalar(f"{prefix}mechanical_loss", self.params.b * state[0]**2)
     
     def _get_winding_resistance(self):
         return self.params.R_w0 * (1 + 0.00393 * (self.state[2] - self.params.T_rw0))

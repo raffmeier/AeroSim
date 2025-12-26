@@ -173,7 +173,7 @@ class DroneVis:
             q = state[6:10]
             R = quat_to_R(q)
             pos = state[0:3]
-            w = state[13::3]
+            w = state[13::4]
             
             self.queue.put_nowait((R, pos, w))
         except queue_mod.Full:

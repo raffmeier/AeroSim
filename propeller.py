@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import json
+from logger import Logger
 
 class PropellerParam():
 
@@ -34,7 +35,7 @@ class PropellerParam():
         # Dynamic model
         self.d = data["diameter"]
 
-        self.J0 = 0.85
+        self.J0 = data["J0"]
 
         self.cT2 = data["cT_coeff_2"]
         self.cT1 = data["cT_coeff_1"]
@@ -46,9 +47,18 @@ class PropellerParam():
 
 class Propeller():
 
-    def __init__(self, params: PropellerParam):
+    def __init__(self, params: PropellerParam, model='dynamic'):
         self.params = params
-        self.model = 'static'
+        self.model = model
+
+        self.thrust = 0.0
+        self.torque = 0.0
+
+        self.cT = 0.0
+        self.cQ = 0.0
+        self.advance_ratio = 0.0
+        self.prop_eff = 0.0
+
 
     def get_force_torque(self, omega, axial_freestream_velocity=0):
         
@@ -61,7 +71,7 @@ class Propeller():
         
     
     def get_static_force_torque(self, omega):
-        omega_squared = np.square(omega)
+        omega_squared = omega**2
 
         prop_thrust = self.params.kT * omega_squared
         prop_torque = self.params.kQ * omega_squared
@@ -69,48 +79,49 @@ class Propeller():
         return prop_thrust, prop_torque
     
     
-    def get_dynamic_force_torque(self, omega, axial_freestream_velocity):
-        omega = np.asarray(omega, dtype=float)
-        v_inf = np.asarray(axial_freestream_velocity, dtype=float)
+    def get_dynamic_force_torque(self, omega, v_inf):
+
+        # If prop is not rotating, return 0 thrust and 0 torque
+        if omega == 0:
+            self.thrust = 0.0
+            self.torque = 0.0
+            self.advance_ratio = 0.0
+            self.prop_eff = 0.0
+            return 0.0, 0.0
 
         omega_revps = omega / (2.0 * np.pi)
-
-        # Avoid divide-by-zero: where omega_revps==0 -> advance_ratio = +inf
-        advance_ratio = np.where(
-            omega_revps != 0.0,
-            v_inf / (omega_revps * self.params.d),
-            np.inf
-        )
+        advance_ratio = v_inf / (omega_revps * self.params.d)
 
         J0 = self.params.J0
 
-        # Polynomial region
-        cT_poly = self.params.cT2 * advance_ratio**2 + self.params.cT1 * advance_ratio + self.params.cT0
-        cQ_poly = self.params.cQ2 * advance_ratio**2 + self.params.cQ1 * advance_ratio + self.params.cQ0
+        if advance_ratio <= J0:
+            self.cT = self.params.cT2 * advance_ratio**2 + self.params.cT1 * advance_ratio + self.params.cT0
+            self.cQ = self.params.cQ2 * advance_ratio**2 + self.params.cQ1 * advance_ratio + self.params.cQ0
+        else:
+            # Value at J0 for fade region
+            cT0 = self.params.cT2 * J0**2 + self.params.cT1 * J0 + self.params.cT0
+            cQ0 = self.params.cQ2 * J0**2 + self.params.cQ1 * J0 + self.params.cQ0
 
-        # Value at J0 for fade region
-        cT0 = self.params.cT2 * J0**2 + self.params.cT1 * J0 + self.params.cT0
-        cQ0 = self.params.cQ2 * J0**2 + self.params.cQ1 * J0 + self.params.cQ0
-
-        # Exponential fade region (J > J0)
-        k = 5.0
-        fade = np.exp(-k * (advance_ratio - J0))
-        cT_fade = cT0 * fade
-        cQ_fade = cQ0 * fade
-
-        # Piecewise selection
-        use_poly = advance_ratio <= J0
-        cT = np.where(use_poly, cT_poly, cT_fade)
-        cQ = np.where(use_poly, cQ_poly, cQ_fade)
-
-        prop_eff = advance_ratio * cT / (cQ * 2 * np.pi)
+            # Exponential fade region (J > J0)
+            k = 5.0
+            fade = np.exp(-k * (advance_ratio - J0))
+            self.cT = cT0 * fade
+            self.cQ = cQ0 * fade
 
         # Forces
-        thrust = self.params.rho * omega_revps**2 * self.params.d**4 * cT
-        torque = self.params.rho * omega_revps**2 * self.params.d**5 * cQ
+        self.thrust = self.params.rho * omega_revps**2 * self.params.d**4 * self.cT
+        self.torque = self.params.rho * omega_revps**2 * self.params.d**5 * self.cQ
 
-        # Optional: ensure omega==0 gives exactly 0 (nice for plots)
-        thrust = np.where(omega_revps != 0.0, thrust, 0.0)
-        torque = np.where(omega_revps != 0.0, torque, 0.0)
+        self.advance_ratio = advance_ratio
 
-        return thrust, torque, advance_ratio, prop_eff
+        return self.thrust, self.torque
+    
+
+    def log(self, L: Logger, prefix: str):
+        L.log_scalar(f"{prefix}thrust", self.thrust)
+        L.log_scalar(f"{prefix}torque", self.torque)
+
+        if self.model == 'dynamic':
+            L.log_scalar(f"{prefix}cT", self.cT)
+            L.log_scalar(f"{prefix}cQ", self.cQ)
+            L.log_scalar(f"{prefix}advance_ratio", self.advance_ratio)

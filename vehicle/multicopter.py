@@ -7,6 +7,7 @@ from vehicle.vehicle import Vehicle
 from logger import Logger
 import os
 import json
+from ground import GroundContact
 
 class MulticopterParam():
 
@@ -58,14 +59,15 @@ class Multicopter(Vehicle):
         self.rb = RigidBody6DOF(self.params.mass, self.params.inertia)
 
         pp = PropellerParam(self.params.propeller_param_name)
-        #self.prop = Propeller(pp) <-- ToDo: Implement propeller model in propeller.py
-        #For now: Just get the propeller parameter values here
+        self.prop = Propeller(pp, model='static')
 
         self.kT = pp.kT
         self.kQ = pp.kQ
 
         mp = MotorParam(self.params.motor_param_name)
         self.motors = [DCMotor(mp, T_amb=20, J_load=pp.J_prop, simulate_electrical_dynamics=False) for _ in range(4)]
+
+        self.ground_contact = GroundContact(z0=0.0, mu_lin=5.0, mu_ang=5.0)
 
         self.rho = 1.225 # ToDo: Implement environment model
     
@@ -80,20 +82,20 @@ class Multicopter(Vehicle):
 
         motor_state = state[13:]
         for i, motor in enumerate(self.motors):
-            motor.set_state(motor_state[3*i : 3*i + 3])
+            motor.set_state(motor_state[4*i : 4*i + 4])
     
     def get_state_derivative(self, state, u, V_bat, T_amb):
 
         rb_state = state[0:13]
-        motor_state = state[13:25]
+        motor_state = state[13:29]
 
         force_body, torque_body, torque_prop = self.compute_vehicle_forces_torques(state)
 
         rb_state_dot = self.rb.get_state_derivative(rb_state, force_body, torque_body)
         
-        motor_state_dot = np.zeros(12)
+        motor_state_dot = np.zeros(16)
         for i, motor in enumerate(self.motors):
-            motor_state_dot[3*i : 3*i+3] = motor.get_state_derivative(motor_state[3*i : 3*i+3], u[i], V_bat, torque_prop[i], T_amb)
+            motor_state_dot[4*i : 4*i+4] = motor.get_state_derivative(motor_state[4*i : 4*i+4], u[i], V_bat, torque_prop[i], T_amb)
 
         state_dot = np.hstack((rb_state_dot, motor_state_dot))
 
@@ -110,11 +112,18 @@ class Multicopter(Vehicle):
         q = state[6:10]
         w = state[10:13]
 
-        omega = state[13::3]
+        omega = state[13::4]
 
         R_wb = quat_to_R(q)
 
-        thrust_prop, torque_prop = self.compute_prop_force_torque(omega)
+        thrust_prop = np.zeros(4)
+        torque_prop = np.zeros(4)
+
+        for i in range(4):
+            thrust_prop[i], torque_prop[i] = self.prop.get_force_torque(omega[i])
+
+        # Ground model
+        F_friction, torque_friction, _ = self.ground_contact.get_friction_force_torque(state)
 
         # Forces
         F_thrust = np.array([0, 0, -np.sum(thrust_prop)])
@@ -122,14 +131,14 @@ class Multicopter(Vehicle):
         vel_body = R_wb.T @ vel
         F_drag = -0.5 * self.rho * self.params.CdA * vel_body * np.abs(vel_body)
 
-        force_body = F_thrust + F_drag
+        force_body = F_thrust + F_drag + F_friction
 
         # Torques
         torque_actuators = self.torque_mixer_quad_plus(thrust_prop, torque_prop, self.params.arm)
 
         # To Do: add aerodynamic rotational drag
 
-        torque_body = torque_actuators
+        torque_body = torque_actuators + torque_friction
 
         return force_body, torque_body, torque_prop
 
