@@ -1,9 +1,8 @@
 import numpy as np
 from pymavlink import mavutil
 from sensor.sensor import SensorSuite
-from utils import getAltitude
-from quad import QuadcopterDynamics
-import constants
+from common.utils import getAltitude
+import common.constants as constants
 
 def connectToPX4SITL():
     master = mavutil.mavlink_connection('tcpin:0.0.0.0:4560')
@@ -43,7 +42,6 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
                 fields_updated =    updated_bitmask,
                 id =                0
             )
-    
     #GPS message
     if step % sensors.gnss_div == 0:
 
@@ -64,8 +62,8 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
                 id =                0
             )
         
-def receiveActuatorControls(master: mavutil.mavlink_connection, quad: QuadcopterDynamics):
-    msg = master.recv_match(blocking=False)
-
-    if msg is not None and msg.get_type() == "HIL_ACTUATOR_CONTROLS":
-        return np.array(msg.controls[0:4]) * quad.params.nmax
+def receiveActuatorControls(master):
+    msg = master.recv_match(type="HIL_ACTUATOR_CONTROLS", blocking=False)
+    if msg is None:
+        return None
+    return np.array(msg.controls[0:4], dtype=float)

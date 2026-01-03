@@ -3,9 +3,9 @@ from sensor.imu import IMU, IMUParam
 from sensor.mag import Magnetometer, MagParam
 from sensor.baro import Barometer, BaroParam
 from sensor.gnss import GNSS, GNSSParam
-from quad import QuadcopterDynamics
-from utils import quat_to_R, getPressure
-import constants
+from common.utils import quat_to_R, getPressure
+from vehicle.vehicle import Vehicle
+import common.constants as constants
 
 class SensorSuite:
     def __init__(self, sim_dt, imu_freq, mag_freq, baro_freq, gnss_freq):
@@ -33,19 +33,22 @@ class SensorSuite:
         gnssParams = GNSSParam()
         self.gnss = GNSS(gnssParams, dt_gnss)
 
-    def step(self, step, quad: QuadcopterDynamics):
+    def step(self, step, veh: Vehicle):
 
-        R_wb = quat_to_R(quad.q)
+        state = veh.get_state()
+        accel = veh.get_accel()
+
+        R_wb = quat_to_R(state[6:10])
 
         if step % self.imu_div == 0:
-            self.imu.step(quad.accel, quad.w, R_wb)
+            self.imu.step(accel, state[10:13], R_wb)
         
         if step % self.mag_div == 0:
             self.mag.step(R_wb)
         
         if step % self.baro_div == 0:
-            pressure = getPressure(constants.HOME_ALT_M - quad.pos[2], constants.PRESSURE_ASL)
+            pressure = getPressure(constants.HOME_ALT_M - state[2], constants.PRESSURE_ASL)
             self.baro.step(pressure)
         
         if step % self.gnss_div == 0:
-            self.gnss.step(quad.pos, quad.vel)
+            self.gnss.step(state[0:3], state[3:6])

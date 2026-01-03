@@ -1,4 +1,6 @@
 import numpy as np
+from logger import Logger
+
 class PID:
     def __init__(self, dt, kp, ki, kd, out_min, out_max, derivative_on_measurement = False):
         self.dt = dt
@@ -49,14 +51,12 @@ class PID:
         self.prev_measurement = measurement
         return u_sat
     
-    def log(self):
-        log = {
-            "p": self.p,
-            "i": self.i,
-            "d": self.d,
-            "error": self.err,
-            "integrated_error": self.integrated_err,
-        }
-        return log
+    def log(self, L: Logger, prefix: str):
+        L.log_scalar(f"{prefix}p", self.p)
+        L.log_scalar(f"{prefix}i", self.i)
+        L.log_scalar(f"{prefix}d", self.d)
+        L.log_scalar(f"{prefix}setpoint", self.setpoint)
+        L.log_scalar(f"{prefix}err", self.err)
+        L.log_scalar(f"{prefix}int_err", self.integrated_err)
         
         

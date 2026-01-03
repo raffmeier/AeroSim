@@ -1,5 +1,5 @@
 import numpy as np
-import constants
+import common.constants as constants
 
 class MagParam():
     def __init__(self):
