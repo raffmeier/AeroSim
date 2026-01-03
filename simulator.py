@@ -11,12 +11,12 @@ class Simulator:
         self.veh = veh
         self.integrator = integrator
     
-    def step(self, u, dt, V_bat, T_amb):
+    def step(self, u, dt, T_amb):
 
-        self.veh.pre_step(u, V_bat, np.zeros(4))
+        self.veh.pre_step(u, np.zeros(4))
         state = self.veh.get_state()
 
-        state_new = self.integrator.step(self.veh.get_state_derivative, state, u, dt, V_bat, T_amb)
+        state_new = self.integrator.step(self.veh.get_state_derivative, state, u, dt, T_amb)
 
         self.veh.set_state(state_new)
         self.veh.post_step()

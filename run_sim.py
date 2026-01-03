@@ -122,7 +122,7 @@ def run_px4_sitl_sim():
             now_us = int(now * 1e6)
 
             # Step simulation
-            sim.step(u, dt_sim, V_bat=50, T_amb=20)
+            sim.step(u, dt_sim, T_amb=20)
 
             # Measure sensor and send to PX4
             sensors.step(step, sim.veh)
@@ -134,22 +134,22 @@ def run_px4_sitl_sim():
                 actuator_effort = controls
 
             for i, mctrl in enumerate(motor_ctrl):
-                u[i] = mctrl.update(actuator_effort[i], V_bat=50)
+                u[i] = mctrl.update(actuator_effort[i], V_bat=quad.battery.get_pack_voltage())
             
             # Update visualisation
             if step % 16 == 0:
                 viz.update(sim.veh.get_state())
-
-            # Advance sim step
-            step += 1
-            if step == 10**6:
-                step = 0
             
             if step % 20 == 0:
                 # Log multicopter and motor controllers
                 quad.log(logger, now)
                 for i, mctrl in enumerate(motor_ctrl):
                     mctrl.log(logger, f"m{i}.")
+            
+            # Advance sim step
+            step += 1
+            if step == 10**6:
+                step = 0
 
             # Sleep for remaining time
             elapsed = time.time() - now

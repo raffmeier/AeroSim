@@ -3,6 +3,7 @@
 PX4_DIR="$HOME/Projects/PX4-Autopilot"
 PHYSICS_SIM="$HOME/Projects/AeroSim/run_sim.py"
 QGC="$HOME/QGC/QGroundControl-x86_64.AppImage"
+VENV_PY="$HOME/Projects/AeroSim/.venv/bin/python"
 
 # First tab: QGC
 gnome-terminal \
@@ -16,7 +17,7 @@ sleep 0.1
 gnome-terminal \
   --tab \
   --title="Physics Sim" \
-  -- bash -ic "echo '[Physics Sim] starting...'; python3 \"$PHYSICS_SIM\" --mode px4; echo; echo '[Physics Sim] exited'; exec bash" &
+  -- bash -ic "echo '[Physics Sim] starting...'; \"$VENV_PY\"  \"$PHYSICS_SIM\" --mode px4; echo; echo '[Physics Sim] exited'; exec bash" &
 
 sleep 0.1
 

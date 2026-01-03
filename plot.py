@@ -109,6 +109,32 @@ def plot_motor_dashboard(d, motor_prefix):
     return fig
 
 
+def plot_battery_dashboard(d):
+    t = _time_axis(d)
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 7), sharex=True)
+
+    axs[0, 0].plot(t, d["capacity"])
+    axs[0, 0].set_title("Remaining capacity")
+    axs[0, 0].legend(); axs[0, 0].grid(True)
+
+    axs[0, 1].plot(t, d["V_pack"])
+    axs[0, 1].set_title("Battery voltage")
+    axs[0, 1].legend(); axs[0, 1].grid(True)
+
+    axs[1, 0].plot(t, d["I_discharge"])
+    axs[1, 0].set_title("Battery discharge current")
+    axs[1, 0].legend(); axs[1, 0].grid(True)
+
+    axs[1, 1].plot(t, d["SOC"])
+    axs[1, 1].set_title("State of charge")
+    axs[1, 1].legend(); axs[1, 1].grid(True)
+
+    fig.tight_layout()
+    plt.show(block=False)
+    return fig
+
+
 def plot_all(csv_file, motor_prefixes):
     """
     Loads CSV once, opens the main dashboard + one motor dashboard per prefix.
@@ -122,4 +148,6 @@ def plot_all(csv_file, motor_prefixes):
     for p in motor_prefixes:
         figs.append(plot_motor_dashboard(d, p))
 
+    figs.append(plot_battery_dashboard(d))
+    
     return figs
