@@ -1,5 +1,7 @@
 # AeroSim
 
+readme is not up to date
+
 Python-based quadrotor sandbox that can drive PX4 SITL via MAVLink. The repository models the vehicle and sensor dynamics. There is also a simple PID attitude controller for debugging.
 
 - Offline attitude PID demo with logging/plots plus CSV export for analysis.
