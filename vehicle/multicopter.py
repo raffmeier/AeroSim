@@ -53,11 +53,11 @@ class MulticopterParam():
 
 class Multicopter(Vehicle):
 
-    def __init__(self, params: MulticopterParam):
+    def __init__(self, params: MulticopterParam, initial_state):
 
         self.params = params
         
-        self.rb = RigidBody6DOF(self.params.mass, self.params.inertia)
+        self.rb = RigidBody6DOF(self.params.mass, self.params.inertia, initial_state=initial_state)
 
         pp = PropellerParam(self.params.propeller_param_name)
         self.prop = Propeller(pp, model='static')
@@ -174,3 +174,6 @@ class Multicopter(Vehicle):
 
         for i, motor in enumerate(self.motors):
             motor.log(L, f"m{i}.")
+    
+    def get_motor(self):
+        return self.motors

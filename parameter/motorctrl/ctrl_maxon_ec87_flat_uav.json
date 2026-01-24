@@ -1,0 +1,8 @@
+{
+    "Kp_omega": 0.5,
+    "Ki_omega": 1.5,
+    "Kp_current": 0, 
+    "Ki_current": 0,
+    "i_max": 60,
+    "omega_max": 400
+}

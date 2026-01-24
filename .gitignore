@@ -3,3 +3,4 @@ output
 .DS_Store
 temp
 .venv
+noctua_v1.json

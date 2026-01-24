@@ -30,9 +30,9 @@ def plot_dashboard(d):
     axs[0, 0].set_title("Position")
     axs[0, 0].legend(); axs[0, 0].grid(True)
 
-    axs[0, 1].plot(t, d["vel_0"], label="vx", color='red')
-    axs[0, 1].plot(t, d["vel_1"], label="vy", color='green')
-    axs[0, 1].plot(t, d["vel_2"], label="vz", color='blue')
+    axs[0, 1].plot(t, d["body_vel_0"], label="body vx", color='red')
+    axs[0, 1].plot(t, d["body_vel_1"], label="body vy", color='green')
+    axs[0, 1].plot(t, d["body_vel_2"], label="body vz", color='blue')
     axs[0, 1].set_title("Velocity")
     axs[0, 1].legend(); axs[0, 1].grid(True)
 
@@ -116,18 +116,98 @@ def plot_battery_dashboard(d):
 
     axs[0, 0].plot(t, d["capacity"])
     axs[0, 0].set_title("Remaining capacity")
-    axs[0, 0].legend(); axs[0, 0].grid(True)
+    axs[0, 0].grid(True)
 
     axs[0, 1].plot(t, d["V_pack"])
     axs[0, 1].set_title("Battery voltage")
-    axs[0, 1].legend(); axs[0, 1].grid(True)
+    axs[0, 1].grid(True)
 
     axs[1, 0].plot(t, d["I_discharge"])
     axs[1, 0].set_title("Battery discharge current")
-    axs[1, 0].legend(); axs[1, 0].grid(True)
+    axs[1, 0].grid(True)
 
     axs[1, 1].plot(t, d["SOC"])
     axs[1, 1].set_title("State of charge")
+    axs[1, 1].grid(True)
+
+    fig.tight_layout()
+    plt.show(block=False)
+    return fig
+
+def plot_aero_dashboard(d):
+    t = _time_axis(d)
+
+    fig, axs = plt.subplots(5, 2, figsize=(12, 7), sharex=True)
+
+    axs[0, 0].plot(t, np.rad2deg(d["alpha"]))
+    axs[0, 0].set_title("Angle of attack")
+    axs[0, 0].grid(True)
+
+    axs[0, 1].plot(t, np.rad2deg(d["beta"]))
+    axs[0, 1].set_title("Sideslip angle")
+    axs[0, 1].grid(True)
+
+    axs[1, 0].plot(t, d["F_lift"])
+    axs[1, 0].set_title("Lift force")
+    axs[1, 0].grid(True)
+
+    axs[1, 1].plot(t, d["F_drag"])
+    axs[1, 1].set_title("Drag force")
+    axs[1, 1].grid(True)
+
+    axs[2, 0].plot(t, d["F_side"])
+    axs[2, 0].set_title("Side force")
+    axs[2, 0].grid(True)
+
+    axs[2, 1].plot(t, d["roll_mom"])
+    axs[2, 1].set_title("Roll moment")
+    axs[2, 1].grid(True)
+
+    axs[3, 0].plot(t, d["pitch_mom"])
+    axs[3, 0].set_title("Pitch mom")
+    axs[3, 0].grid(True)
+
+    axs[3, 1].plot(t, d["yaw_mom"])
+    axs[3, 1].set_title("Yaw moment")
+    axs[3, 1].grid(True)
+
+    axs[4, 0].plot(t, d["prop_thrust"])
+    axs[4, 0].set_title("prop_thrust")
+    axs[4, 0].grid(True)
+
+    axs[4, 1].plot(t, d["prop_torque"])
+    axs[4, 1].set_title("Yaw prop_torque")
+    axs[4, 1].grid(True)
+
+
+    fig.tight_layout()
+    plt.show(block=False)
+    return fig
+
+
+def plot_control_surface_dashboard(d):
+    t = _time_axis(d)
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 7), sharex=True)
+
+    axs[0, 0].plot(t, np.rad2deg(d["cs0.angle"]), label='Angle')
+    axs[0, 0].plot(t, np.rad2deg(d["cs0.setpoint"]), color='darkorange', linestyle="--", label='Setpoint')
+    axs[0, 0].set_title("Left aileron")
+    axs[0, 0].legend(); axs[0, 0].grid(True)
+
+    axs[0, 1].plot(t, np.rad2deg(d["cs1.angle"]), label='Angle')
+    axs[0, 1].plot(t, np.rad2deg(d["cs1.setpoint"]), color='darkorange', linestyle="--", label='Setpoint')
+    axs[0, 1].set_title("Right aileron")
+    axs[0, 1].legend(); axs[0, 1].grid(True)
+
+    axs[1, 0].plot(t, np.rad2deg(d["cs2.angle"]), label='Angle')
+    axs[1, 0].plot(t, np.rad2deg(d["cs2.setpoint"]), color='darkorange', linestyle="--", label='Setpoint')
+    axs[1, 0].set_title("Elevator")
+    axs[1, 0].legend(); axs[1, 0].grid(True)
+
+    axs[1, 1].plot(t, np.rad2deg(d["cs3.angle"]), label='Angle')
+    axs[1, 1].plot(t, np.rad2deg(d["cs3.setpoint"]), color='darkorange', linestyle="--", label='Setpoint')
+    axs[1, 1].set_title("Rudder")
     axs[1, 1].legend(); axs[1, 1].grid(True)
 
     fig.tight_layout()
@@ -135,11 +215,9 @@ def plot_battery_dashboard(d):
     return fig
 
 
-def plot_all(csv_file, motor_prefixes):
-    """
-    Loads CSV once, opens the main dashboard + one motor dashboard per prefix.
-    Returns list of figures.
-    """
+
+def plot_all(csv_file, vehicle_tyle, motor_prefixes):
+    
     d = load_csv(csv_file)
 
     figs = []
@@ -149,5 +227,9 @@ def plot_all(csv_file, motor_prefixes):
         figs.append(plot_motor_dashboard(d, p))
 
     figs.append(plot_battery_dashboard(d))
+
+    if vehicle_tyle=='fw':
+        figs.append(plot_aero_dashboard(d))
+        figs.append(plot_control_surface_dashboard(d))
     
     return figs
