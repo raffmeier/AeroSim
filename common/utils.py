@@ -29,6 +29,16 @@ def omega_matrix_from_q(omega):
                 [r,  q, -p,  0.0],
             ])
 
+def wind_to_body_matrix(alpha, beta):
+    ca, sa = np.cos(alpha), np.sin(alpha)
+    cb, sb = np.cos(beta),  np.sin(beta)
+    
+    return np.array([
+        [ ca*cb, -ca*sb, -sa],
+        [    sb,     cb, 0.0],
+        [ sa*cb, -sa*sb,  ca]
+    ])
+
 def getPressure(altitude, ref_pressure):
     return ref_pressure * (1 - (2.25577e-5 * altitude))**5.25588
 

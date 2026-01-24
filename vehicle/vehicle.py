@@ -15,3 +15,9 @@ class Vehicle():
     
     def get_accel():
         raise NotImplementedError()
+    
+    def get_airspeed():
+        raise NotImplementedError()
+    
+    def get_motor():
+        raise NotImplementedError()

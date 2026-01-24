@@ -6,13 +6,13 @@ from common.utils import quat_to_euler
 
 class RigidBody6DOF():
 
-    def __init__(self, mass, inertia):
+    def __init__(self, mass, inertia, initial_state):
         self.mass = mass
         self.inertia = inertia
         self.inv_inertia = np.linalg.inv(self.inertia)
 
         # State
-        self.state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) # 3 position, 3 velocity, 4 attitude quaternion, 3 body rates
+        self.state = initial_state
         
         # Extended metrics
         self.accel = np.zeros(3)
@@ -66,6 +66,7 @@ class RigidBody6DOF():
         state = self.state
         L.log_vector("pos", state[0:3])
         L.log_vector("vel", state[3:6])
+        L.log_vector("body_vel", quat_to_R(state[6:10]).T @ state[3:6])
         L.log_vector("quat", state[6:10])
         L.log_vector("rate", state[10:13])
         L.log_vector("accel", self.accel)

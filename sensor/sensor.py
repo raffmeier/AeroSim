@@ -3,6 +3,7 @@ from sensor.imu import IMU, IMUParam
 from sensor.mag import Magnetometer, MagParam
 from sensor.baro import Barometer, BaroParam
 from sensor.gnss import GNSS, GNSSParam
+from sensor.airspeed import PitotDiffPressureSensor, PitotDiffPressureParam
 from common.utils import quat_to_R, getPressure
 from vehicle.vehicle import Vehicle
 import common.constants as constants
@@ -33,10 +34,14 @@ class SensorSuite:
         gnssParams = GNSSParam()
         self.gnss = GNSS(gnssParams, dt_gnss)
 
+        airspeedParams = PitotDiffPressureParam()
+        self.airspeed_sensor = PitotDiffPressureSensor(airspeedParams)
+
     def step(self, step, veh: Vehicle):
 
         state = veh.get_state()
         accel = veh.get_accel()
+        airspeed = veh.get_airspeed(state)
 
         R_wb = quat_to_R(state[6:10])
 
@@ -49,6 +54,7 @@ class SensorSuite:
         if step % self.baro_div == 0:
             pressure = getPressure(constants.HOME_ALT_M - state[2], constants.PRESSURE_ASL)
             self.baro.step(pressure)
+            self.airspeed_sensor.step(airspeed)
         
         if step % self.gnss_div == 0:
             self.gnss.step(state[0:3], state[3:6])
