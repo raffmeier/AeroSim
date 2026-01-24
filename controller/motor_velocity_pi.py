@@ -2,7 +2,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import numpy as np
 from controller.pid import PID
-from actuator.dcmotor import DCMotor
+from model.actuator.dcmotor import DCMotor
 from logger import Logger
 import json
 

@@ -1,17 +1,14 @@
-# AeroSim
+# AeroSim (temp)
 
-Physics-based aero vehicle sandbox for multicopter and fixed-wing simulation, built for rapid iteration and PX4 SITL integration.
+Python-based aero vehicle sandbox for multicopter and fixed-wing simulation, built for rapid iteration, logging, and PX4 SITL integration.
 
 ![Quad visualisation](images/vis_quad.png)
 
-- 6-DoF rigid-body dynamics with selectable integrators (Euler, RK4)
-- Vehicle stack for multicopter and fixed-wing (aerodynamic models)
-- DC motor simulation for approximating BLDC motors (optional with simulated electrical dynamics -> requires small dt), two state thermal dynamics (winding and motor housing temperature), optional brake mode (by shorting the phases), integrated cascaded velocity PI current/velocity controller (ideal current controller if electrical dynamics are turned off)
-- Additional models: aero propeller model: static (kT, kQ) and dynamic (cT(J), cQ(J)), very simple battery model, ground friction, fixed wing control surfaces (1st order response)
-- Real-time sensor simulation (IMU, magnetometer, barometer, GNSS, airspeed) with noise, bias random walk, quantization, and rate limits.
-- MAVLink bridge that drives `HIL_SENSOR` and `HIL_GPS` messages and consumes `HIL_ACTUATOR_CONTROLS` so PX4 SITL can control the simulation vehicle
-- Modular parameter structure for vehicles, motors, propellers with .json files
-- Built-in plotting and Matplotlib/Unity (via UDP) visualisation hooks for fast debugging
+- 6-DoF rigid-body dynamics with selectable integrators (Euler, RK4).
+- Vehicle stack for multicopter and fixed-wing, including propeller, motor, battery, and ground models.
+- Sensor suite (IMU, mag, baro, GNSS, airspeed) with noise, bias, limits, and per-sensor update rates.
+- PX4 SITL bridge using MAVLink for HIL-style sensor feeds and actuator commands.
+- Built-in plotting and Matplotlib/Unity visualisation hooks for fast debugging.
 
 ## Quick Start
 1. Create a Python 3.9+ environment and install the basics:  
@@ -20,23 +17,30 @@ Physics-based aero vehicle sandbox for multicopter and fixed-wing simulation, bu
    `python run_sim.py`
 3. Adjust the scenario by editing `run_sim.py` (vehicle type, parameters, controller, visualisation, real-time).
 
-
-## Frame conventions
-- **World frame:** NED (x north, y east, z down). Ground plane is clamped at z = 0.
-- **Body frame:** FRD (x forward, y right, z down)
-
-
-## Plot example (Fixed wing)
+## Highlights
 ![Aero state plots](images/plot_aero.png)
 ![Rigid-body plots](images/plot_rb.png)
 ![Motor performance plots](images/plot_motor.png)
 ![Battery plots](images/plot_battery.png)
 ![Control surface plots](images/plot_cs.png)
 
+## Core Models
+- **Vehicle dynamics:** `model/vehicle` for multicopter and fixed-wing dynamics.
+- **Actuators:** `model/actuator` with DC motor and control surface models.
+- **Propulsion:** `model/propeller` and motor controllers in `controller/`.
+- **Environment:** `model/ground` and shared constants/utilities in `common/`.
+- **Sensors:** `model/sensor` with IMU, mag, baro, GNSS, and airspeed instruments.
+
+## Parameters and Data
+- JSON parameter sets in `parameter/` for vehicles, motors, motor controllers, and propellers.
+- Logs saved to `output/` with plotting utilities in `plot.py` and `open_plot.py`.
+- Example quad parameters in `parameter/multicopter/test_quad.json`.
+
 ## Repository Layout
 ```
 .
 ├── README.md
+├── README_TEMP.md
 ├── common/                 # Shared constants and utils
 ├── controller/             # PID and motor velocity controllers
 ├── images/                 # Visuals used in this README

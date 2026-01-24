@@ -2,7 +2,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import time
 import numpy as np
-from actuator.dcmotor import DCMotor, MotorParam
+from model.actuator.dcmotor import DCMotor, MotorParam
 from controller.motor_velocity_pi import MotorVelocityController, MotorVelocityControllerParam
 from matplotlib import pyplot as plt
 from logger import Logger

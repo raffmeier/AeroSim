@@ -3,7 +3,7 @@ import json
 import time
 import math
 import numpy as np
-from vehicle.vehicle import Vehicle
+from model.vehicle.vehicle import Vehicle
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 

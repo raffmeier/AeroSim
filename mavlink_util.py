@@ -1,6 +1,6 @@
 import numpy as np
 from pymavlink import mavutil
-from sensor.sensor import SensorSuite
+from model.sensor.sensor import SensorSuite
 from common.utils import getAltitude
 import common.constants as constants
 

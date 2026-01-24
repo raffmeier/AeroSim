@@ -1,11 +1,11 @@
 import numpy as np
 from vehicle.vehicle import Vehicle
 import os, json
-from rigid_body_6dof import RigidBody6DOF
-from propeller import Propeller, PropellerParam
+from model.rigid_body_6dof import RigidBody6DOF
+from model.propeller import Propeller, PropellerParam
 from actuator.dcmotor import DCMotor, MotorParam
-from ground import GroundContact
-from battery import Battery
+from model.ground import GroundContact
+from model.battery import Battery
 from actuator.control_surface import ControlSurface
 from common.utils import quat_to_R, wind_to_body_matrix
 from logger import Logger
@@ -16,6 +16,7 @@ class FixedWingParam():
         base_dir = os.path.dirname(__file__)
         fw_file = os.path.join(
             base_dir,
+            "..",
             "..",
             "parameter",
             "fixedwing",
@@ -90,7 +91,7 @@ class FixedWing(Vehicle):
         self.rb = RigidBody6DOF(mass=self.params.mass, inertia=self.params.inertia, initial_state=initial_state)
 
         pp = PropellerParam(self.params.propeller_param_name)
-        self.prop = Propeller(pp, model='dynamic')
+        self.prop = Propeller(pp, model='static')
 
         mp = MotorParam(self.params.motor_param_name)
         self.motor = DCMotor(mp, T_amb=20, J_load=pp.J_prop, simulate_electrical_dynamics=False)

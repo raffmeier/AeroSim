@@ -1,14 +1,14 @@
 import numpy as np
-from rigid_body_6dof import RigidBody6DOF
+from model.rigid_body_6dof import RigidBody6DOF
 from actuator.dcmotor import DCMotor, MotorParam
-from propeller import Propeller, PropellerParam
+from model.propeller import Propeller, PropellerParam
 from common.utils import *
 from vehicle.vehicle import Vehicle
 from logger import Logger
 import os
 import json
-from ground import GroundContact
-from battery import Battery
+from model.ground import GroundContact
+from model.battery import Battery
 
 class MulticopterParam():
 
@@ -17,6 +17,7 @@ class MulticopterParam():
         base_dir = os.path.dirname(__file__)
         multicopter_file = os.path.join(
             base_dir,
+            "..",
             "..",
             "parameter",
             "multicopter",
@@ -177,3 +178,14 @@ class Multicopter(Vehicle):
     
     def get_motor(self):
         return self.motors
+    
+    def get_airspeed(self, state):
+        vel = state[3:6]
+        q = state[6:10]
+
+        R_wb = quat_to_R(q)
+
+        vel_body = R_wb.T @ vel
+        airspeed = np.linalg.norm(vel_body)
+
+        return airspeed

@@ -10,6 +10,7 @@ class PropellerParam():
         base_dir = os.path.dirname(__file__)
         propeller_file = os.path.join(
             base_dir,
+            "..",
             "parameter",
             "propeller",
             f"{propeller_name}.json"

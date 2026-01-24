@@ -10,7 +10,8 @@ class MotorParam():
         base_dir = os.path.dirname(__file__)
         motor_file = os.path.join(
             base_dir,
-            "..",          # actuator
+            "..",     
+            "..",
             "parameter",
             "motor",
             f"{motor_name}.json"

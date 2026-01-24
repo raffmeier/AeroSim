@@ -1,11 +1,11 @@
 import numpy as np
-from sensor.imu import IMU, IMUParam
-from sensor.mag import Magnetometer, MagParam
-from sensor.baro import Barometer, BaroParam
-from sensor.gnss import GNSS, GNSSParam
-from sensor.airspeed import PitotDiffPressureSensor, PitotDiffPressureParam
+from model.sensor.imu import IMU, IMUParam
+from model.sensor.mag import Magnetometer, MagParam
+from model.sensor.baro import Barometer, BaroParam
+from model.sensor.gnss import GNSS, GNSSParam
+from model.sensor.airspeed import PitotDiffPressureSensor, PitotDiffPressureParam
 from common.utils import quat_to_R, getPressure
-from vehicle.vehicle import Vehicle
+from model.vehicle.vehicle import Vehicle
 import common.constants as constants
 
 class SensorSuite:

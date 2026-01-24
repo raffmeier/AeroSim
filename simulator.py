@@ -1,9 +1,6 @@
 import numpy as np
-import time
-from vehicle.vehicle import Vehicle
-from vehicle.multicopter import Multicopter
+from model.vehicle.vehicle import Vehicle
 from integrator import Integrator
-from integrator import RK4, Euler
 
 class Simulator:
 

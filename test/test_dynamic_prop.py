@@ -2,7 +2,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import numpy as np
 import matplotlib.pyplot as plt
-from propeller import Propeller, PropellerParam
+from model.propeller import Propeller, PropellerParam
 
 pp = PropellerParam('mejzlik_26.5x16.2_2B')
 prop = Propeller(pp)

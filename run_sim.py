@@ -1,33 +1,32 @@
-import argparse
 import time
 from logger import *
 from plot import *
-from sensor.sensor import SensorSuite
+from model.sensor.sensor import SensorSuite
 from mavlink_util import *
-from drone_vis import DroneVis
+from visualisation.drone_vis import DroneVis
 from simulator import Simulator
 from controller.motor_velocity_pi import MotorVelocityController, MotorVelocityControllerParam
 from integrator import RK4, Euler
-from vehicle.multicopter import Multicopter, MulticopterParam
-from vehicle.fixedwing import FixedWing, FixedWingParam
+from model.vehicle.multicopter import Multicopter, MulticopterParam
+from model.vehicle.fixedwing import FixedWing, FixedWingParam
 from datetime import datetime
 import socket
-from unity import sendPose
+from visualisation.unity import sendPose
 
 dt_sim = 0.001                                                      # s
 t_sim = 10                                                          # s, For offline sim
 
 initial_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])   # 3 position, 3 velocity, 4 attitude quaternion, 3 body rates
 
-veh_type = 'fw'                                                     # Options: fw, mc
-veh_name = 'adv_plane'                                              # Vehicle param file name
+veh_type = 'mc'                                                     # Options: fw, mc
+veh_name = 'test_quad'                                              # Vehicle param file name
 motor_ctrl_name = 'ctrl_maxon_ecx32_flat_uav'                       # Motor control param file
 
-visulisation = 'none'                                               # Options: none, matplotlib (quad only), unity (send pose to UDP socket)
+visulisation = 'matplotlib'                                               # Options: none, matplotlib (quad only), unity (send pose to UDP socket)
 
-controller = 'none'                                                 # Options: px4, none
+controller = 'px4'                                                 # Options: px4, none
 
-real_time = False                                                   # Running real time (definitely necessary for PX4 SITL), or as fast as possible
+real_time = True                                                   # Running real time (definitely necessary for PX4 SITL), or as fast as possible
 
 do_plot = True                                                      # Display log plots after finished sim
 
@@ -67,6 +66,7 @@ def run_sim():
     logger = Logger()
 
     control_inputs = np.zeros(u_size)
+    actuator_effort = np.zeros(u_size)
 
     sim_running = True
     sim_step = 0
