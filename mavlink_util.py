@@ -22,7 +22,7 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
         updated_bitmask |= 0b0000000111000000 
     
     if step % sensors.baro_div == 0:
-        updated_bitmask |= 0b0000101000000000
+        updated_bitmask |= 0b0000111000000000
     
     master.mav.hil_sensor_send(
                 time_usec =         time_us,
@@ -36,7 +36,7 @@ def sendSensorsMessage(master: mavutil.mavlink_connection, sensors: SensorSuite,
                 ymag =              sensors.mag.meas_mag[1],
                 zmag =              sensors.mag.meas_mag[2],
                 abs_pressure =      sensors.baro.meas_baro,
-                diff_pressure =     0.0,
+                diff_pressure =     sensors.airspeed_sensor.diff_pressure,
                 pressure_alt =      getAltitude(sensors.baro.meas_baro, constants.PRESSURE_ASL),
                 temperature =       20.0,
                 fields_updated =    updated_bitmask,
@@ -66,4 +66,4 @@ def receiveActuatorControls(master):
     msg = master.recv_match(type="HIL_ACTUATOR_CONTROLS", blocking=False)
     if msg is None:
         return None
-    return np.array(msg.controls[0:4], dtype=float)
+    return np.array(msg.controls[0:-1], dtype=float)
